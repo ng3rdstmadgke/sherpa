@@ -4,13 +4,12 @@
 
 ## 資料
 
-- 仕様: `docs/agent-tasks/init/spec-draft.md` (§6 がモックとの差異)
+- 仕様: `docs/agent-tasks/init/spec-draft.md`
+- 設計 (API・git のコマンド・DB・テスト) と未決事項 (§14): `docs/agent-tasks/init/implementation-plan.md`
 - 起動方法とポートフォワード: `README.md`
 - アプリ: `web/` (Next.js 16 + Tailwind CSS v4 + shadcn/ui)
-- 本実装前のモック: `mock/` (git の管理外。手元にだけある。ない場合は使わない)
-  - 画面の動きを見比べるための参照用。**編集しない**。本実装は `web/` で行う
-  - 起動するときは別のポートにする: `cd mock && PORT=4748 npm run dev`
-  - コードを検索するときは `mock/` を対象から外す (同じ名前のファイルが `web/` にもあるため)
+  - サーバーの部品は `web/src/server/`、API は `web/src/app/api/`、ブラウザからの呼び出しは `web/src/lib/api.ts` (TanStack Query)
+  - 画面の状態の保存は `web/src/lib/persist.ts` (SQLite の `ui_state`。page.tsx が読んで渡し、変更は `PUT /api/ui-state` でまとめて書く)
 
 ## コマンド (web/ で実行)
 
@@ -18,10 +17,12 @@
 - `npm run lint` / `npx tsc --noEmit` / `npm run build` / `npm test`
 - `npx tsx scripts/check-real-repos.mts <repo> [<repo>=<除外>,…]`: 実際のリポジトリに対する読み取り専用の確認
 - `npx tsc --noEmit` の `LayoutProps` のエラーは、Next.js が起動時に型を生成するまで出るもので無視してよい
+- `npm run build` の `globals.css` の `::highlight(...)` の警告 (Turbopack の CSS パーサーが知らない擬似要素) は無視してよい。規則は出力に残り、Ctrl+F の強調は効く
 
 ## 守ること
 
-- 確認に使う実際のリポジトリ (`CLAUDE.local.md` に書く。公開しない) は読み取り専用。fetch / checkout / add など書き込む操作は実行しない。git は `GIT_OPTIONAL_LOCKS=0` を付けて実行する (`git status` が index を書き換えないように)
+- 確認に使う実際のリポジトリ (`CLAUDE.local.md` に書く。公開しない) は読み取り専用。fetch / checkout / add など書き込む操作は実行しない
+  - git は `GIT_OPTIONAL_LOCKS=0` と `-c diff.autoRefreshIndex=false` を付けて実行する (`GIT_OPTIONAL_LOCKS=0` だけでは、`git diff` が stat の変わったファイルのために index を書き直すことがある)
 - `127.0.0.1` 以外では待ち受けない
 - 同じディレクトリで `next dev` を 2 つ起動できない。`127.0.0.1:4747` で dev サーバーが動いていればそれを使う。自分で起動したら、終わったら止める
 
@@ -33,19 +34,21 @@
 - eslint は react-hooks v7。effect の中で直接 setState しない (MutationObserver や requestAnimationFrame などのコールバックの中なら可)
 - Tailwind v4: `prose-neutral` と `dark:prose-invert` を同じ規則で `@apply` すると、ダークの配色が効かない。ダークは別の規則 (`.dark .markdown-body`) に分ける (`web/src/app/globals.css`)
 - テーマ変数 (`--color-*`) は使われていないと CSS に出力されないことがある。確実に色を付けたい所は値を直接書く
-- 画面の状態の保存は `web/src/lib/persist.ts` (SQLite の `ui_state`。page.tsx が読んで渡し、変更は `PUT /api/ui-state` でまとめて書く)
-- サーバーの部品は `web/src/server/`、API は `web/src/app/api/`、ブラウザからの呼び出しは `web/src/lib/api.ts` (TanStack Query)
+- サーバーから git / rg を呼ぶときは `web/src/server/exec.ts` の `git()` / `run()` を通す (環境変数・`-c` の設定・同時実行数の制限がまとまっている)
+- `@vscode/ripgrep` は import しない。Turbopack が rg の実行ファイルまでバンドルしようとして失敗するので、`exec.ts` の `rgPath()` でパスを組み立てている
+- テーブルの定義 (`web/src/server/db/schema.ts`) を変えたら、`npx drizzle-kit generate` で SQL を作り、`web/drizzle/` もコミットする (起動時に自動で当たる)
 
 ## コードの書き方
 
-- モックに合わせる: セミコロンなし、ダブルクォート、2 スペース、1 行は長め (140 文字程度まで)
+- 既存のコードに合わせる: セミコロンなし、ダブルクォート、2 スペース、1 行は長め (140 文字程度まで)
 - コメントは日本語。何をするか・なぜそうするかを短く書く
 - prettier の設定はない。prettier で書き換えない (既定の設定ではセミコロンが付いてしまう)
 
 ## 確認のしかた
 
-- 型チェックと lint を通す
-- 画面は、scratchpad に `puppeteer-core` を入れ、`/usr/bin/google-chrome` で操作してスクリーンショットを撮って確かめる。クリップボードは `overridePermissions` で `clipboard-read` / `clipboard-write` を許可すれば読める
+- `npm run lint`・`npx tsc --noEmit`・`npm test` を通す。大きく変えたら `npm run build` も
+- 画面は `.claude/skills/playwright-cli` の skill (playwright-cli + `/usr/bin/google-chrome`) で操作し、スクリーンショットを撮って確かめる。出力は scratchpad に置く
+- `npm run dev` は実際の DB (`~/.local/share/sherpa/sherpa.db`) に書き込む。試しに登録したプロジェクトなどを残したくないときは、`SHERPA_DB` に一時ファイルを指定して起動する
 - 純粋な関数は `npx tsx` で直接実行して確かめられる (拡張子なしの import があるため、Node の型の自動除去では読み込めない)
 
 ## コミット
