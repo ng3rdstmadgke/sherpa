@@ -3,6 +3,7 @@
 import { createContext, useContext } from "react"
 import { keepPreviousData, QueryClient, useQuery } from "@tanstack/react-query"
 import type { DiffBase } from "@/components/workspace/editor-layout"
+import type { DisplaySettings } from "./display"
 import type { SearchOptions } from "./search"
 import type {
   Branch,
@@ -123,7 +124,7 @@ export function useProjects() {
 }
 
 export function useSettings() {
-  return useQuery({ queryKey: ["settings"], queryFn: () => api<{ excludes: string[] }>("/api/settings") })
+  return useQuery({ queryKey: ["settings"], queryFn: () => api<{ excludes: string[] } & DisplaySettings>("/api/settings") })
 }
 
 export function useDetect(path: string | null) {

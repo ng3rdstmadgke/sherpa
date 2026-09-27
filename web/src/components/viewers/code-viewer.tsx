@@ -71,7 +71,7 @@ export function CodeViewer({ path, code, highlightLine, plain }: { path: string;
   }, [html, highlightLine])
 
   if (!html) {
-    return <pre className="code-view p-4 font-mono text-[13px] text-muted-foreground">{code}</pre>
+    return <pre className="code-view sherpa-code-text p-4 font-mono text-muted-foreground">{code}</pre>
   }
   return <div ref={ref} className="code-view with-line-numbers" dangerouslySetInnerHTML={{ __html: html }} />
 }

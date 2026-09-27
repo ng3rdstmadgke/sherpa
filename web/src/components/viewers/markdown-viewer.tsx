@@ -50,7 +50,7 @@ export function MarkdownViewer({
   resolveImage?: (src: string) => string
 }) {
   return (
-    <article className="markdown-body mx-auto max-w-4xl px-8 py-6">
+    <article className="markdown-body px-8 py-6">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{

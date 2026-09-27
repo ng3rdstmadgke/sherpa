@@ -5,7 +5,7 @@
 ## 1. 保存するもの
 
 - 登録したプロジェクト、パスマッピング、プロジェクトごとの除外パターンと既定の比較対象
-- 全体の設定 (除外パターン)
+- 全体の設定 (除外パターン、フォントサイズ)
 - worktree ごとの SPEC 欄の入力
 - 画面の状態 (JSON)。キーと保存のしかたは [ui.md](ui.md) §8。テーマもここに入る
 
@@ -44,8 +44,9 @@ worktree_settings   worktree ごとの保存値
   PRIMARY KEY (project_id, worktree_id)
 
 settings            全体の設定
-  key    text PK                       "excludes"
-  value  text JSON                     行がなければ初期値 (DEFAULT_EXCLUDES)
+  key    text PK                       "excludes" / "display"
+  value  text JSON                     excludes: string[] (行がなければ DEFAULT_EXCLUDES)
+                                       display: { codeFontSize, markdownFontSize } (行がなければ 13 / 14。範囲の外は 10〜24 に丸める)
 
 ui_state            画面の状態 (persist.ts のキー)
   key         text PK                  "instances" / "ws:<id>" / "theme" / "files-panel-layout" …

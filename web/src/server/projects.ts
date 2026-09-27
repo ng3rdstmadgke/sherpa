@@ -1,6 +1,7 @@
 import { readdir, readFile, stat } from "node:fs/promises"
 import path from "node:path"
 import { asc, eq } from "drizzle-orm"
+import { normalizeDisplay, normalizeFontSize, type DisplaySettings } from "@/lib/display"
 import { DEFAULT_EXCLUDES } from "@/lib/excludes"
 import type { DetectResult, PathMapping, Project, ProjectInput, Worktree } from "@/lib/types"
 import { getDb, schema } from "./db"
@@ -45,6 +46,26 @@ export function setGlobalExcludes(excludes: string[]) {
     .insert(schema.settings)
     .values({ key: "excludes", value: excludes })
     .onConflictDoUpdate({ target: schema.settings.key, set: { value: excludes } })
+    .run()
+}
+
+// 表示の設定 (フォントサイズ)。行がなければ既定値
+export function displaySettings(): DisplaySettings {
+  const row = getDb().select().from(schema.settings).where(eq(schema.settings.key, "display")).get()
+  return normalizeDisplay(row?.value as Partial<DisplaySettings> | undefined)
+}
+
+export function setDisplaySettings(input: Partial<DisplaySettings>) {
+  // 送られなかった項目と、正しくない値は、今の値のまま
+  const cur = displaySettings()
+  const value: DisplaySettings = {
+    codeFontSize: normalizeFontSize(input.codeFontSize, cur.codeFontSize),
+    markdownFontSize: normalizeFontSize(input.markdownFontSize, cur.markdownFontSize),
+  }
+  getDb()
+    .insert(schema.settings)
+    .values({ key: "display", value })
+    .onConflictDoUpdate({ target: schema.settings.key, set: { value } })
     .run()
 }
 

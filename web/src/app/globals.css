@@ -143,8 +143,13 @@
 .code-view pre {
   padding: 12px 0;
   font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-size: 13px;
-  line-height: 20px;
+  font-size: var(--sherpa-code-font-size, 13px);
+  line-height: 1.54;
+}
+/* コードの大きさ (全体の設定のフォントサイズ)。差分の表とハイライトしないときの表示で使う */
+.sherpa-code-text {
+  font-size: var(--sherpa-code-font-size, 13px);
+  line-height: 1.54;
 }
 .code-view.with-line-numbers code {
   counter-reset: line;
@@ -162,7 +167,9 @@
 
 /* ---- markdown ---- */
 .markdown-body {
-  @apply prose prose-sm prose-neutral max-w-4xl;
+  @apply prose prose-sm prose-neutral max-w-none;
+  /* 全体の設定のフォントサイズ。prose の余白や見出しは em なので、まとめて比例する */
+  font-size: var(--sherpa-markdown-font-size, 14px);
 }
 /* ダークの配色は別の規則にする。同じ規則で dark:prose-invert を @apply すると、
    prose-neutral の色の書き分け (@supports (color: lab)) に上書きされてライトの色のままになるため */
@@ -177,7 +184,8 @@
   @apply rounded bg-muted px-1 py-0.5 font-normal;
 }
 .markdown-body .code-block pre {
-  @apply rounded-md border bg-muted/50! p-3 text-[13px];
+  @apply rounded-md border bg-muted/50! p-3;
+  font-size: 0.93em;
 }
 
 .code-view .line.highlighted {

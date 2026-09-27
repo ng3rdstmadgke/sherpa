@@ -136,7 +136,7 @@ export function DiffViewer({
   const expand = (start: number) => setExpanded((prev) => new Set(prev).add(start))
 
   return (
-    <table className={cn("w-full border-collapse font-mono text-[13px] leading-5", mode === "split" && "table-fixed")}>
+    <table className={cn("sherpa-code-text w-full border-collapse font-mono", mode === "split" && "table-fixed")}>
       {mode === "split" && (
         <colgroup>
           <col className="w-12" />

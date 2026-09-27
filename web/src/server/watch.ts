@@ -58,6 +58,11 @@ export function broadcast(e: WatchEvent) {
   }
 }
 
+// サーバーを止めている途中か (新しい SSE の要求を断るのに使う)
+export function isShuttingDown() {
+  return hub.closing
+}
+
 export function subscribe(keys: string[], send: (e: WatchEvent) => void, close: () => void = () => {}): () => void {
   const sub: Sub = { keys: new Set(keys), send, close }
   if (hub.closing) {

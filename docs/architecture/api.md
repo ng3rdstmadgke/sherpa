@@ -20,7 +20,7 @@
 | `GET /api/projects/detect?path=` | | `DetectResult` |
 | `PATCH /api/projects/:id` | `ProjectInput` (`path` なし) | `Project` |
 | `DELETE /api/projects/:id` | `{}` | `{}` |
-| `GET /api/settings` / `PUT /api/settings` | `{ excludes: string[] }` | `{ excludes: string[] }` |
+| `GET /api/settings` / `PUT /api/settings` | `{ excludes?: string[]; codeFontSize?: number; markdownFontSize?: number }` (送った項目だけを変える) | `{ excludes; codeFontSize; markdownFontSize }` |
 | `GET /api/ui-state` | | `Record<string, unknown>` |
 | `PUT /api/ui-state` (POST も同じ) | `{ set?: Record<string, unknown>; deletePrefixes?: string[] }` | `{}` |
 | `GET /api/fs/dirs?dir=` | `""` (→ `~` だけ) か `~/foo/` のような末尾 `/` 付き | `PathEntry[]` (ディレクトリだけ。2,000 件まで) |

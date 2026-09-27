@@ -104,6 +104,21 @@ describe("format", () => {
   })
 })
 
+describe("display", () => {
+  it("フォントサイズは 10〜24 の整数にし、数でなければ既定値", async () => {
+    const { normalizeFontSize, normalizeDisplay, displayCssVars, DISPLAY_DEFAULTS } = await import("@/lib/display")
+    expect(normalizeFontSize(15, 13)).toBe(15)
+    expect(normalizeFontSize("16", 13)).toBe(16)
+    expect(normalizeFontSize(8, 13)).toBe(10)
+    expect(normalizeFontSize(99, 13)).toBe(24)
+    expect(normalizeFontSize(13.6, 13)).toBe(14)
+    expect(normalizeFontSize("abc", 13)).toBe(13)
+    expect(normalizeFontSize("", 13)).toBe(13)
+    expect(normalizeDisplay(undefined)).toEqual(DISPLAY_DEFAULTS)
+    expect(displayCssVars({ codeFontSize: 15, markdownFontSize: 18 })).toEqual({ "--sherpa-code-font-size": "15px", "--sherpa-markdown-font-size": "18px" })
+  })
+})
+
 describe("request-guard", () => {
   const h = (o: Record<string, string>) => ({ get: (k: string) => o[k.toLowerCase()] ?? null })
   it("hostname はポートを外す", () => {

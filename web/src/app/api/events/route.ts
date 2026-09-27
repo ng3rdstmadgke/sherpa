@@ -1,8 +1,11 @@
 import type { WatchEvent } from "@/lib/types"
-import { subscribe, watchErrors } from "@/server/watch"
+import { isShuttingDown, subscribe, watchErrors } from "@/server/watch"
 
 // 自動更新の通知 (SSE)。?watch=<projectId>/<worktreeId>,… の worktree を監視する
 export function GET(req: Request) {
+  // 止めている途中は、接続ごと閉じる。ブラウザの EventSource は同じ keep-alive の接続でつなぎ直してくるので、
+  // ストリームを閉じるだけだと接続が空かず、next start の終了処理が終わらない。200 以外を返すと EventSource はつなぎ直さない
+  if (isShuttingDown()) return new Response(null, { status: 503, headers: { Connection: "close" } })
   const keys = (new URL(req.url).searchParams.get("watch") ?? "").split(",").filter((k) => k.includes("/"))
   const enc = new TextEncoder()
   let cleanup = () => {}

@@ -7,7 +7,8 @@ import { AlertTriangle, FolderGit2, GitBranch, Home, Moon, MoreHorizontal, Penci
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { Project, Worktree } from "@/lib/types"
-import { api, errorMessage, useHealth, useProjects } from "@/lib/api"
+import { api, errorMessage, useHealth, useProjects, useSettings } from "@/lib/api"
+import { displayCssVars } from "@/lib/display"
 import { useWatchEvents } from "@/lib/events"
 import { relTime, tildify } from "@/lib/format"
 import { removePersisted, usePersistentState } from "@/lib/persist"
@@ -56,6 +57,12 @@ export function AppShell() {
   useLayoutEffect(() => {
     document.documentElement.classList.toggle("dark", dark)
   }, [dark])
+  // フォントサイズ (全体の設定)。保存したら、開いているタブにもすぐ効かせる
+  const settings = useSettings().data
+  useLayoutEffect(() => {
+    if (!settings) return
+    for (const [k, v] of Object.entries(displayCssVars(settings))) document.documentElement.style.setProperty(k, v)
+  }, [settings])
 
   // 同じプロジェクト + ワークツリーが既に開いていればそのタブへ、なければ新しいタブで開く
   const open = (projectId: string, worktreeId = "main") => {

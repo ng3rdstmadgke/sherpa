@@ -208,6 +208,17 @@ describe("設定と画面の状態", () => {
     await call(R.settings.PUT, json("PUT", "/api/settings", { excludes: init.body.excludes }))
   })
 
+  it("全体の設定 (フォントサイズ): 送った項目だけを変え、範囲に丸める", async () => {
+    type S = { excludes: string[]; codeFontSize: number; markdownFontSize: number }
+    const init = await call<S>(R.settings.GET, new Request(url("/api/settings")))
+    expect(init.body).toMatchObject({ codeFontSize: 13, markdownFontSize: 14 })
+    const put = await call<S>(R.settings.PUT, json("PUT", "/api/settings", { codeFontSize: 16 }))
+    expect(put.body).toMatchObject({ codeFontSize: 16, markdownFontSize: 14, excludes: init.body.excludes })
+    const clamp = await call<S>(R.settings.PUT, json("PUT", "/api/settings", { markdownFontSize: 99, codeFontSize: "x" }))
+    expect(clamp.body).toMatchObject({ codeFontSize: 16, markdownFontSize: 24 })
+    await call(R.settings.PUT, json("PUT", "/api/settings", { codeFontSize: 13, markdownFontSize: 14 }))
+  })
+
   it("ui-state: 書く・前方一致で消す", async () => {
     await call(R.ui.PUT, json("PUT", "/api/ui-state", { set: { instances: [{ id: "t-1" }], "ws:t-1": { view: "git" }, "ws:t-2": { view: "files" }, "ws_x": 1, theme: "dark" } }))
     await call(R.ui.PUT, json("PUT", "/api/ui-state", { deletePrefixes: ["ws:t-1"], set: { activeId: "t-2" } }))
