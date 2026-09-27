@@ -47,6 +47,7 @@
 | npm | `/web` | 週に 1 回 | minor / patch を 1 つの pull request にまとめる。メジャー版は 1 つずつ。開く pull request は 10 まで |
 | GitHub Actions | `/` | 週に 1 回 | すべてを 1 つの pull request にまとめる |
 
+- `@types/node` のメジャー版の更新は作らせない (`ignore`)。Node.js の版 (`web/.nvmrc`) を上げるときに、同じメジャー版に手で上げる。Node.js は LTS の版を使う
 - pull request にも CI が流れる。通ったものを取り込む
 - メジャー版の更新は、変更点を読んで、画面でも確かめてから取り込む (ESLint 10 のように、依存のプラグインが追いついていないことがある)
 
