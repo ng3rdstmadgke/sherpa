@@ -52,6 +52,7 @@
 - テーマ変数 (`--color-*`) は使われていないと CSS に出力されないことがある。確実に色を付けたい所は値を直接書く
 - サーバーから git / rg を呼ぶときは `web/src/server/exec.ts` の `git()` / `run()` を通す (環境変数・`-c` の設定・同時実行数の制限がまとまっている)
 - `@vscode/ripgrep` は import しない。Turbopack が rg の実行ファイルまでバンドルしようとして失敗するので、`exec.ts` の `rgPath()` でパスを組み立てている
+- TypeScript は 6 と 7 を並べて入れている。`tsc` は 7 (型チェック)、API を使う道具 (typescript-eslint・`next build`) は `typescript` の名前の 6 を使う。6 のコマンドは `tsc6` (`docs/architecture/ci.md` §5)
 - `web/package.json` の `overrides` は、依存の中の脆弱な版を上書きしている (理由は `docs/architecture/ci.md` §2)。上の依存が直したら外せる
 - テーブルの定義 (`web/src/server/db/schema.ts`) を変えたら、`npx drizzle-kit generate` で SQL を作り、`web/drizzle/` もコミットする (起動時に自動で当たる)
 

@@ -102,4 +102,4 @@ web/
 | [api.md](api.md) | API の一覧と型、エラー、ブラウザ側の取得 |
 | [storage.md](storage.md) | SQLite のテーブルとマイグレーション |
 | [security.md](security.md) | 待ち受け、Host / Origin の確認、パスの検証、git を安全に呼ぶ決まり |
-| [ci.md](ci.md) | CI (GitHub Actions)、依存の脆弱性の扱い、Dependabot、ESLint 10 の互換 |
+| [ci.md](ci.md) | CI (GitHub Actions)、依存の脆弱性の扱い、Dependabot、ESLint 10 の互換、TypeScript 6 と 7 の並用 |
