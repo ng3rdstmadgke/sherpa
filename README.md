@@ -98,3 +98,32 @@ Host remote-server-name
 
 
 ローカルのPCで http://localhost:4747 にアクセス
+
+## Development
+
+開発の決まり (コーディング規約・確認のしかたなど) は [CLAUDE.md](CLAUDE.md) にあります。
+
+### playwright-cli のインストール
+
+画面の確認には [playwright-cli](https://github.com/microsoft/playwright-cli) を使います (Claude Code からは `.claude/skills/playwright-cli` のスキルで使います)。
+インストールは公式の手順に沿って行います。npm で入れる場合の例:
+
+```bash
+npm install -g @playwright/cli@latest
+playwright-cli --version
+
+# chromeブラウザのインストール
+playwright-cli install-browser chrome
+```
+
+### テストと確認
+
+```bash
+cd ~/sherpa/web
+nvm use
+npm run lint && npx tsc --noEmit   # lint と型チェック
+npm test                           # vitest (単体テストと、一時ディレクトリの git リポジトリでの結合テスト)
+
+# 手元の実際のリポジトリに対する読み取り専用の確認 (= の後はそのリポジトリの除外パターン)
+npx tsx scripts/check-real-repos.mts ~/repo-a ~/repo-b='archives/**'
+```

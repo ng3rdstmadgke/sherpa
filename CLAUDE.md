@@ -47,7 +47,10 @@
 ## 確認のしかた
 
 - `npm run lint`・`npx tsc --noEmit`・`npm test` を通す。大きく変えたら `npm run build` も
-- 画面は `.claude/skills/playwright-cli` の skill (playwright-cli + `/usr/bin/google-chrome`) で操作し、スクリーンショットを撮って確かめる。出力は scratchpad に置く
+- 実際にアプリを画面で確認する場合は、playwright-cli スキル (`.claude/skills/playwright-cli`) を使う。puppeteer などを自分で入れて操作しない
+  - `playwright-cli` が入っていなければ、README の「開発」の節の手順で入れる (グローバルに入れるので、利用者に確かめてから)
+  - ブラウザは `playwright-cli open --browser=chrome` (`/usr/bin/google-chrome`) で開き、操作してスクリーンショットを撮って確かめる。出力は scratchpad に置く
+  - 何段階もの操作は `playwright-cli run-code --filename=<script.js>` にまとめると速い
 - `npm run dev` は実際の DB (`~/.local/share/sherpa/sherpa.db`) に書き込む。試しに登録したプロジェクトなどを残したくないときは、`SHERPA_DB` に一時ファイルを指定して起動する
 - 純粋な関数は `npx tsx` で直接実行して確かめられる (拡張子なしの import があるため、Node の型の自動除去では読み込めない)
 
