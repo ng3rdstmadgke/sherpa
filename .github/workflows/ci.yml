@@ -33,6 +33,9 @@ jobs:
       # better-sqlite3 は node-gyp でビルドする (ubuntu のランナーには gcc / make / python3 がある)
       - run: npm ci
 
+      # 依存の脆弱性。high 以上があれば落とす (moderate 以下は Dependabot の alert で見る)
+      - run: npm audit --audit-level=high
+
       - run: npm run lint
 
       # まっさらな状態では LayoutProps などの型がないので、先に Next.js に型を作らせる

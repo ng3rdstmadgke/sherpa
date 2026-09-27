@@ -19,14 +19,21 @@ npm run build         # 大きく変えたとき
 `.github/workflows/ci.yml` が、`main` への push と pull request のたびに、上と同じものを流す。
 
 1. `npm ci` (better-sqlite3 は node-gyp でビルドする)
-2. `npm run lint`
-3. `npx next typegen && npx tsc --noEmit` (まっさらな状態では Next.js の型がないので、先に作る)
-4. `npm test`
-5. `npm run build`
+2. `npm audit --audit-level=high` (依存に high 以上の脆弱性があれば落とす)
+3. `npm run lint`
+4. `npx next typegen && npx tsc --noEmit` (まっさらな状態では Next.js の型がないので、先に作る)
+5. `npm test`
+6. `npm run build`
 
 - ランナーは `ubuntu-24.04`、Node.js は `web/.nvmrc` の版。npm のキャッシュを使う
 - 結合テストはランナーの git で、一時ディレクトリにリポジトリを作る。実際のリポジトリの確認スクリプト (§5) は CI では流さない
 - 手元で同じ手順を確かめるときは、まっさらな clone で `npm ci` から流す
+
+### 依存の脆弱性と更新
+
+- GitHub の Dependabot alerts を有効にしている。moderate 以下も含め、脆弱性はリポジトリの Security タブに出る
+- `.github/dependabot.yml` が、npm (`web/`) と GitHub Actions の更新の pull request を週に 1 回作る。minor / patch はまとめて 1 つにする
+- `npm audit` で脆弱性が出て、直接の依存を上げても直らないときは、`web/package.json` の `overrides` で依存の中の版を上書きする。上書きしたら、その依存を使う機能 (mermaid の図、`drizzle-kit generate` など) が動くことを確かめる
 
 ## 3. 単体テスト (`web/test/unit/`)
 
