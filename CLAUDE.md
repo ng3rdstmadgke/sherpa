@@ -47,6 +47,7 @@
 - shadcn/ui は base-nova スタイル = Base UI。`asChild` ではなく `render` prop を使う (例: `<DialogTrigger render={<Button />}>`)。`cn` は `"cn"` パッケージから import する
 - shadcn の Select (Base UI) は選んだ値の表示名の扱いが面倒なので、単純な選択欄はブラウザ標準の `select` を Input と同じ見た目にして使っている
 - eslint は react-hooks v7。effect の中で直接 setState しない (MutationObserver や requestAnimationFrame などのコールバックの中なら可)
+- ESLint 10。`eslint-config-next` の中の eslint-plugin-react / import / jsx-a11y は ESLint 10 に対応していないので、`web/eslint.config.mjs` で `@eslint/compat` の `fixupConfigRules` で包んで動かしている。プラグインが ESLint 10 に対応したら外せる。`npm install` の「ERESOLVE overriding peer dependency」の警告はこのため
 - Tailwind v4: `prose-neutral` と `dark:prose-invert` を同じ規則で `@apply` すると、ダークの配色が効かない。ダークは別の規則 (`.dark .markdown-body`) に分ける (`web/src/app/globals.css`)
 - テーマ変数 (`--color-*`) は使われていないと CSS に出力されないことがある。確実に色を付けたい所は値を直接書く
 - サーバーから git / rg を呼ぶときは `web/src/server/exec.ts` の `git()` / `run()` を通す (環境変数・`-c` の設定・同時実行数の制限がまとまっている)
