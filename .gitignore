@@ -1,0 +1,8 @@
+mock/
+tmp/
+
+# Playwright CLI output (may contain credentials)
+.playwright-cli/
+
+# 手元だけの設定 (実際のリポジトリの名前など。公開しない)
+CLAUDE.local.md
