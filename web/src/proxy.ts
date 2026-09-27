@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { checkRequest } from "@/lib/request-guard"
 
-// すべての要求で Host を確かめ、書き込みでは Origin と Content-Type も確かめる (docs/agent-tasks/init/implementation-plan.md §6.1)
+// すべての要求で Host を確かめ、書き込みでは Origin と Content-Type も確かめる (docs/architecture/security.md §2)
 export function proxy(request: NextRequest) {
   const denied = checkRequest(request.method, request.headers)
   if (denied) return NextResponse.json({ error: { code: "FORBIDDEN", message: denied.message } }, { status: denied.status })

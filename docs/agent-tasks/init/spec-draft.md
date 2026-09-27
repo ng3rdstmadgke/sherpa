@@ -1,5 +1,7 @@
 # sherpa 仕様ドラフト (v4 / 本実装)
 
+> **初回の実装のときの資料 (更新しない)**。最新の仕様と仕組みは `docs/architecture/overview.md`、開発の手順は `docs/how-to/development/` にある。
+
 複数のプロジェクトのソースコード・Markdown・git 差分を、1 つのローカル Web アプリで横断して閲覧するツール。
 **閲覧専用**で、編集や git の操作 (add / commit など)、tmux との連携は範囲外とする。AI の操作やコマンドの実行は引き続き tmux で行う。
 

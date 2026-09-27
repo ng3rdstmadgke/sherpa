@@ -3,7 +3,7 @@ import os from "node:os"
 import path from "node:path"
 import { ApiError } from "./errors"
 
-// パスの検証 (docs/agent-tasks/init/implementation-plan.md §6.2)
+// パスの検証 (docs/architecture/security.md §3)
 
 export const home = () => process.env.SHERPA_HOME || os.homedir()
 

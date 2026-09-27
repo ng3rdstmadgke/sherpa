@@ -1,5 +1,7 @@
 # sherpa 本実装の計画
 
+> **初回の実装のときの資料 (更新しない)**。最新の仕様と仕組みは `docs/architecture/overview.md`、開発の手順は `docs/how-to/development/` にある。
+
 モック (ダミーデータで動く画面) を、実際のリポジトリを読むアプリにするための計画。画面の仕様は `docs/agent-tasks/init/spec-draft.md`、画面の動きはモック (`mock/`) を正とする。
 
 ## 0. 方針

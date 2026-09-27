@@ -6,7 +6,7 @@ import { getCtx, setSpecPaths } from "@/server/projects"
 import { searchContent, searchNames, type SearchParams } from "@/server/search"
 import { restartProject } from "@/server/watch"
 
-// worktree を対象にする API (docs/agent-tasks/init/implementation-plan.md §2.3)。/api/projects/:projectId/worktrees/:worktreeId/<rest>
+// worktree を対象にする API (docs/architecture/api.md §2)。/api/projects/:projectId/worktrees/:worktreeId/<rest>
 
 type Ctx = { params: Promise<{ projectId: string; worktreeId: string; rest: string[] }> }
 

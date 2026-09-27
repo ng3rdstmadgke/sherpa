@@ -6,7 +6,7 @@ import type { WatchEvent } from "@/lib/types"
 import { ignoredEntries } from "./files"
 import { getCtx, specPathsOf } from "./projects"
 
-// ファイルの監視と、SSE の購読者の管理 (docs/agent-tasks/init/implementation-plan.md §5)。
+// ファイルの監視と、SSE の購読者の管理 (docs/architecture/live-reload.md §2)。
 // 監視するのは、ブラウザで開いているタブの worktree だけ。購読がなくなって 30 秒たったら止める
 
 type Sub = { keys: Set<string>; send: (e: WatchEvent) => void }

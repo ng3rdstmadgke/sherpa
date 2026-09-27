@@ -9,7 +9,7 @@ import { catBlob, IMAGE_EXT } from "./git"
 import { checkRel, isInside, resolveInside } from "./paths"
 import type { WtCtx } from "./projects"
 
-// ファイルの一覧・内容・SPEC (docs/agent-tasks/init/implementation-plan.md §4, §9)
+// ファイルの一覧・内容・SPEC (docs/architecture/files.md)
 
 const MAX_ENTRIES = 100_000
 

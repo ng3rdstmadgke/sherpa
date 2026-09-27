@@ -23,7 +23,7 @@ import type {
   Change,
 } from "./types"
 
-// サーバー API の呼び出しと TanStack Query のフック (docs/agent-tasks/init/implementation-plan.md §2.5)。
+// サーバー API の呼び出しと TanStack Query のフック (docs/architecture/api.md §5)。
 // キーは ["wt", projectId, worktreeId, 種類, 引数]。SSE の通知でその worktree のキーをまとめて無効にする
 
 export class ApiRequestError extends Error {

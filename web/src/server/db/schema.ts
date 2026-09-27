@@ -1,6 +1,6 @@
 import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core"
 
-// SQLite のテーブル (docs/agent-tasks/init/implementation-plan.md §7)
+// SQLite のテーブル (docs/architecture/storage.md §3)
 
 // 登録したプロジェクト
 export const projects = sqliteTable("projects", {

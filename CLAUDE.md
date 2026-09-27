@@ -4,8 +4,9 @@
 
 ## 資料
 
-- 仕様: `docs/agent-tasks/init/spec-draft.md`
-- 設計 (API・git のコマンド・DB・テスト) と未決事項 (§14): `docs/agent-tasks/init/implementation-plan.md`
+- 仕様と仕組みの正本: `docs/architecture/overview.md` (機能ごとの詳細は `docs/architecture/*.md`)。機能を変えたら、対応するファイルを同じコミットで直す
+- 開発の手順書: `docs/how-to/development/` (環境の整え方 `setup.md`、テストと確認 `testing.md`)。開発の手順を書くときもここに置く
+- 初回の実装のときの資料 (仕様のドラフト・実装計画・経緯): `docs/agent-tasks/init/` (更新しない)
 - 起動方法とポートフォワード: `README.md`
 - アプリ: `web/` (Next.js 16 + Tailwind CSS v4 + shadcn/ui)
   - サーバーの部品は `web/src/server/`、API は `web/src/app/api/`、ブラウザからの呼び出しは `web/src/lib/api.ts` (TanStack Query)
@@ -48,7 +49,7 @@
 
 - `npm run lint`・`npx tsc --noEmit`・`npm test` を通す。大きく変えたら `npm run build` も
 - 実際にアプリを画面で確認する場合は、playwright-cli スキル (`.claude/skills/playwright-cli`) を使う。puppeteer などを自分で入れて操作しない
-  - `playwright-cli` が入っていなければ、README の「開発」の節の手順で入れる (グローバルに入れるので、利用者に確かめてから)
+  - `playwright-cli` が入っていなければ、`docs/how-to/development/setup.md` の手順で入れる (グローバルに入れるので、利用者に確かめてから)
   - ブラウザは `playwright-cli open --browser=chrome` (`/usr/bin/google-chrome`) で開き、操作してスクリーンショットを撮って確かめる。出力は scratchpad に置く
   - 何段階もの操作は `playwright-cli run-code --filename=<script.js>` にまとめると速い
 - `npm run dev` は実際の DB (`~/.local/share/sherpa/sherpa.db`) に書き込む。試しに登録したプロジェクトなどを残したくないときは、`SHERPA_DB` に一時ファイルを指定して起動する
