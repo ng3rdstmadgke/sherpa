@@ -59,5 +59,5 @@ ui_state            画面の状態 (persist.ts のキー)
 ## 4. マイグレーション
 
 - `web/drizzle/` の SQL を、サーバーが最初に DB を使うときに drizzle の `migrate()` で当てる (明示的な実行はいらない)。当てたものは DB の中に記録されるので、2 回目以降は何もしない
-- SQL の場所は実行したディレクトリ (`process.cwd()`) からの `drizzle/`。`web/` で `npm run dev` / `npm run start` する前提 (npm は `web/` に移ってから実行する)
+- SQL の場所は実行したディレクトリ (`process.cwd()`) からの `drizzle/`。`bin/sherpa run` も `web/` に移ってから起動するので、そのまま見つかる。`web/` の外から `next` を直接呼ぶと見つからない
 - テーブルの定義を変えたら、`npx drizzle-kit generate` で SQL を作り、`web/drizzle/` もコミットする

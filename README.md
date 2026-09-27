@@ -41,7 +41,7 @@ sudo apt install -y git build-essential python3 curl
 ```
 
 Node.js は nvm で入れます (apt の nodejs は 18 系で、古くて使えません)。
-`nvm install` はシェルの既定の版 (`nvm alias default`) を変えません。Sherpa を動かすときは、`web/.nvmrc` に書いた版 (24) に `nvm use` で切り替えます。
+`nvm install` はシェルの既定の版 (`nvm alias default`) を変えません。起動コマンド (`bin/sherpa`) が、`web/.nvmrc` に書いた版 (24) に自動で切り替えます。
 
 ```bash
 # nvm の最新の版を調べる (github.com の releases/latest のリダイレクト先が最新のタグ)
@@ -52,15 +52,13 @@ source ~/.bashrc
 nvm install 24
 ```
 
-#### Sherpa のパッケージインストール
+#### Sherpa のインストール
 
 ```bash
 git clone https://github.com/ng3rdstmadgke/sherpa.git ~/sherpa
-cd ~/sherpa/web
-nvm use          # web/.nvmrc の版 (24) に切り替える
-node --version   # v24.x と出れば OK
-npm install
 ```
+
+npm のパッケージ (`npm install`) は、初めて起動したときに起動コマンドが入れます (次の「起動」)。
 
 ### 起動
 

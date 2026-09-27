@@ -5,11 +5,13 @@ sherpa を開発するための環境の手順。アプリを動かすだけな�
 
 ## 1. アプリを動かせるようにする
 
-README の「Getting started」の「依存パッケージのインストール」と「Sherpa のパッケージインストール」を済ませる (Node.js 24・git・ビルドに使うもの、`npm install`)。
+README の「Getting started」の「依存パッケージのインストール」と「Sherpa のインストール」を済ませる (Node.js 24・git・ビルドに使うもの、`git clone`)。
+
+`npm install` は `bin/sherpa run` が初めて起動したときに行う。テストなどの npm のコマンドを先に使いたいときは、手で入れる。
 
 ```bash
 cd ~/sherpa/web
-nvm use          # web/.nvmrc の版 (24) に切り替える。シェルを開くたびに要る
+nvm use          # web/.nvmrc の版 (24) に切り替える。npm のコマンドを直接使うシェルでは、開くたびに要る
 npm install
 ```
 
