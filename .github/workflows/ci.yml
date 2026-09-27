@@ -33,8 +33,8 @@ jobs:
       # better-sqlite3 は node-gyp でビルドする (ubuntu のランナーには gcc / make / python3 がある)
       - run: npm ci
 
-      # 依存の脆弱性。high 以上があれば落とす (moderate 以下は Dependabot の alert で見る)
-      - run: npm audit --audit-level=high
+      # 依存の脆弱性。critical があれば落とす (high 以下は Dependabot の alert と pull request で直す)
+      - run: npm audit --audit-level=critical
 
       - run: npm run lint
 

@@ -31,7 +31,7 @@
 - `npm run lint` / `npx tsc --noEmit` / `npm run build` / `npm test`
 - `npx tsx scripts/check-real-repos.mts <repo> [<repo>=<除外>,…]`: 実際のリポジトリに対する読み取り専用の確認
 - `npx tsc --noEmit` の `LayoutProps` のエラーは、Next.js がまだ型を生成していないときに出る。`npx next typegen` を先に実行すれば出ない
-- CI (`.github/workflows/ci.yml`) は push / pull request で lint・型チェック・`npm test`・build を流す。流す手順を変えたら `docs/how-to/development/testing.md` §2 も直す
+- CI (`.github/workflows/ci.yml`) は push / pull request で `npm audit --audit-level=critical`・lint・型チェック・`npm test`・build を流す。仕組みは `docs/architecture/ci.md`
 - `npm run build` の `globals.css` の `::highlight(...)` の警告 (Turbopack の CSS パーサーが知らない擬似要素) は無視してよい。規則は出力に残り、Ctrl+F の強調は効く
 
 ## 守ること
@@ -47,12 +47,12 @@
 - shadcn/ui は base-nova スタイル = Base UI。`asChild` ではなく `render` prop を使う (例: `<DialogTrigger render={<Button />}>`)。`cn` は `"cn"` パッケージから import する
 - shadcn の Select (Base UI) は選んだ値の表示名の扱いが面倒なので、単純な選択欄はブラウザ標準の `select` を Input と同じ見た目にして使っている
 - eslint は react-hooks v7。effect の中で直接 setState しない (MutationObserver や requestAnimationFrame などのコールバックの中なら可)
-- ESLint 10。`eslint-config-next` の中の eslint-plugin-react / import / jsx-a11y は ESLint 10 に対応していないので、`web/eslint.config.mjs` で `@eslint/compat` の `fixupConfigRules` で包んで動かしている。プラグインが ESLint 10 に対応したら外せる。`npm install` の「ERESOLVE overriding peer dependency」の警告はこのため
+- ESLint 10。`eslint-config-next` の中のプラグインが ESLint 10 に対応していないので、`web/eslint.config.mjs` で `@eslint/compat` の `fixupConfigRules` で包んで動かしている (`docs/architecture/ci.md` §4)
 - Tailwind v4: `prose-neutral` と `dark:prose-invert` を同じ規則で `@apply` すると、ダークの配色が効かない。ダークは別の規則 (`.dark .markdown-body`) に分ける (`web/src/app/globals.css`)
 - テーマ変数 (`--color-*`) は使われていないと CSS に出力されないことがある。確実に色を付けたい所は値を直接書く
 - サーバーから git / rg を呼ぶときは `web/src/server/exec.ts` の `git()` / `run()` を通す (環境変数・`-c` の設定・同時実行数の制限がまとまっている)
 - `@vscode/ripgrep` は import しない。Turbopack が rg の実行ファイルまでバンドルしようとして失敗するので、`exec.ts` の `rgPath()` でパスを組み立てている
-- `web/package.json` の `overrides` は、依存の中の脆弱な版を上書きしている (mermaid が使う lodash-es、drizzle-kit の @esbuild-kit が使う esbuild)。上の依存が直したら外せる。CI は `npm audit --audit-level=high` で落ちる
+- `web/package.json` の `overrides` は、依存の中の脆弱な版を上書きしている (理由は `docs/architecture/ci.md` §2)。上の依存が直したら外せる
 - テーブルの定義 (`web/src/server/db/schema.ts`) を変えたら、`npx drizzle-kit generate` で SQL を作り、`web/drizzle/` もコミットする (起動時に自動で当たる)
 
 ## コードの書き方
