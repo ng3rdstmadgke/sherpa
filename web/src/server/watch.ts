@@ -9,7 +9,8 @@ import { getCtx, specPathsOf } from "./projects"
 // ファイルの監視と、SSE の購読者の管理 (docs/architecture/live-reload.md §2)。
 // 監視するのは、ブラウザで開いているタブの worktree だけ。購読がなくなって 30 秒たったら止める
 
-type Sub = { keys: Set<string>; send: (e: WatchEvent) => void }
+// close: ストリームを閉じる (サーバーを止めるとき)
+type Sub = { keys: Set<string>; send: (e: WatchEvent) => void; close: () => void }
 
 type Watch = {
   key: string
@@ -26,10 +27,22 @@ type Watch = {
   error?: string
 }
 
-type Hub = { subs: Set<Sub>; watches: Map<string, Watch> }
+type Hub = { subs: Set<Sub>; watches: Map<string, Watch>; closing: boolean }
 
 const g = globalThis as unknown as { __sherpaHub?: Hub }
-const hub: Hub = (g.__sherpaHub ??= { subs: new Set(), watches: new Map() })
+const hub: Hub = (g.__sherpaHub ??= { subs: new Set(), watches: new Map(), closing: false })
+
+// サーバーを止めるとき (Ctrl+C / SIGTERM)、SSE のストリームをすべて閉じる。
+// next start の終了処理は今ある接続が終わるのを待つので、閉じないと SSE の接続が残って終了しない
+if (!(g as { __sherpaShutdown?: boolean }).__sherpaShutdown) {
+  ;(g as { __sherpaShutdown?: boolean }).__sherpaShutdown = true
+  const shutdown = () => {
+    hub.closing = true
+    for (const s of [...hub.subs]) s.close()
+  }
+  process.on("SIGINT", shutdown)
+  process.on("SIGTERM", shutdown)
+}
 
 const STOP_AFTER = 30_000
 const DEBOUNCE = 300
@@ -45,8 +58,12 @@ export function broadcast(e: WatchEvent) {
   }
 }
 
-export function subscribe(keys: string[], send: (e: WatchEvent) => void): () => void {
-  const sub: Sub = { keys: new Set(keys), send }
+export function subscribe(keys: string[], send: (e: WatchEvent) => void, close: () => void = () => {}): () => void {
+  const sub: Sub = { keys: new Set(keys), send, close }
+  if (hub.closing) {
+    queueMicrotask(close)
+    return () => {}
+  }
   hub.subs.add(sub)
   for (const k of sub.keys) acquire(k)
   return () => {

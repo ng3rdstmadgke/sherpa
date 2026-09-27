@@ -15,7 +15,16 @@ export function GET(req: Request) {
           cleanup()
         }
       }
-      const unsubscribe = subscribe(keys, send)
+      // サーバーを止めるときに呼ばれる。ストリームを閉じて、接続を終わらせる
+      const close = () => {
+        cleanup()
+        try {
+          controller.close()
+        } catch {
+          // すでに閉じている
+        }
+      }
+      const unsubscribe = subscribe(keys, send, close)
       controller.enqueue(enc.encode(": connected\n\n"))
       setTimeout(() => {
         for (const w of watchErrors(keys)) send({ type: "watch-error", projectId: w.projectId, worktreeId: w.worktreeId, message: w.error ?? "" })
