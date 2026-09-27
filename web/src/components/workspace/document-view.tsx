@@ -315,9 +315,12 @@ function CommitView({ hash }: { hash: string }) {
   return <CommitDetail commit={{ ...data, files: data.files ?? [] }} />
 }
 
+// コミットの詳細を開いたとき、変更ファイルがこの数以下なら差分をすべて展開しておく (多いと差分の取得が一度に走るため)
+const COMMIT_EXPAND_LIMIT = 50
+
 function CommitDetail({ commit }: { commit: { hash: string; shortHash: string; message: string; body: string; author: string; date: string; files: Change[] } }) {
   const [mode, setMode] = useState<DiffMode>("unified")
-  const [open, setOpen] = useState<Set<string>>(new Set())
+  const [open, setOpen] = useState<Set<string>>(() => new Set(commit.files.length <= COMMIT_EXPAND_LIMIT ? commit.files.map((f) => f.path) : []))
   const toggle = (p: string) =>
     setOpen((prev) => {
       const n = new Set(prev)
