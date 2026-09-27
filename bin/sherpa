@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+# sherpa の起動コマンド。使い方は `sherpa --help`
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: sherpa <subcommand> [options]
+
+Subcommands:
+  run          sherpa を起動する (http://127.0.0.1:<PORT>)
+
+Options (run):
+  -p, --port <PORT>   ポートを指定する (既定: 4747)
+  -d, --dev           開発用として起動する (npm run dev)。指定しなければビルドして起動する (npm run build && npm run start)
+  -h, --help          この説明を出す
+EOF
+}
+
+# スクリプトの場所 (シンボリックリンクならリンク先) からリポジトリを探す。~/.local/bin などにリンクして使えるように
+resolve_root() {
+  local src="${BASH_SOURCE[0]}"
+  while [ -L "$src" ]; do
+    local dir
+    dir="$(cd -P "$(dirname "$src")" && pwd)"
+    src="$(readlink "$src")"
+    [[ "$src" != /* ]] && src="$dir/$src"
+  done
+  cd -P "$(dirname "$src")/.." && pwd
+}
+
+ROOT="$(resolve_root)"
+WEB="$ROOT/web"
+# メッセージの表示 (info / error)
+# shellcheck source=lib/utils.sh
+. "$ROOT/bin/lib/utils.sh"
+[ -f "$WEB/package.json" ] || error "web/ が見つかりません ($WEB)"
+
+# Node.js を web/.nvmrc の版にする。nvm がなければ、今の node が 22 以上かを確かめる
+setup_node() {
+  local nvm_sh="${NVM_DIR:-$HOME/.nvm}/nvm.sh"
+  if [ -s "$nvm_sh" ]; then
+    # nvm.sh は未定義の変数を使うので、読み込む間だけ -u を外す
+    set +u
+    # shellcheck disable=SC1090
+    . "$nvm_sh"
+    local want
+    want="$(cat "$WEB/.nvmrc")"
+    nvm use --silent "$want" >/dev/null || error "nvm で Node.js $want に切り替えられません。先に 'nvm install $want' を実行してください"
+    set -u
+  fi
+  command -v node >/dev/null || error "node が見つかりません"
+  local major
+  major="$(node -p 'process.versions.node.split(".")[0]')"
+  [ "$major" -ge 22 ] || error "Node.js 22 以上が必要です (今は $(node --version))"
+}
+
+# node_modules がないか、package-lock.json が更新されていれば npm install する
+ensure_deps() {
+  if [ ! -d "$WEB/node_modules" ] || [ "$WEB/package-lock.json" -nt "$WEB/node_modules/.package-lock.json" ]; then
+    info "npm install を実行します"
+    (cd "$WEB" && npm install)
+  fi
+}
+
+# ビルドがないか、ソースがビルドより新しければ npm run build する
+needs_build() {
+  local stamp="$WEB/.next/BUILD_ID"
+  [ -f "$stamp" ] || return 0
+  local paths=(src public drizzle package.json package-lock.json next.config.ts postcss.config.mjs tsconfig.json)
+  local p
+  for p in "${paths[@]}"; do
+    [ -e "$WEB/$p" ] || continue
+    if [ -n "$(find "$WEB/$p" -newer "$stamp" -print -quit)" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+cmd_run() {
+  local port=4747 dev=false
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -p | --port)
+        [ $# -ge 2 ] || error "$1 にはポートを指定してください"
+        port="$2"
+        shift 2
+        ;;
+      --port=*)
+        port="${1#*=}"
+        shift
+        ;;
+      -d | --dev)
+        dev=true
+        shift
+        ;;
+      -h | --help)
+        usage
+        exit 0
+        ;;
+      *)
+        error "知らないオプションです: $1 ('sherpa --help' を参照)"
+        ;;
+    esac
+  done
+  [[ "$port" =~ ^[0-9]+$ ]] && [ "$port" -ge 1 ] && [ "$port" -le 65535 ] || error "ポートが正しくありません: $port"
+
+  setup_node
+  ensure_deps
+  cd "$WEB"
+  export PORT="$port"
+  if $dev; then
+    exec npm run dev
+  fi
+  if needs_build; then
+    info "ビルドします (npm run build)"
+    npm run build
+  fi
+  # exec で置き換え、Ctrl+C がそのまま next に届くようにする
+  exec npm run start
+}
+
+case "${1:-}" in
+  run)
+    shift
+    cmd_run "$@"
+    ;;
+  -h | --help | help | "")
+    usage
+    ;;
+  *)
+    usage >&2
+    error "知らないサブコマンドです: $1"
+    ;;
+esac

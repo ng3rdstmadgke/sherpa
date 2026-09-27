@@ -61,6 +61,7 @@ Next.js 16 (Node.js)
 ### ディレクトリ
 
 ```
+bin/sherpa                           起動コマンド (sherpa run [-p PORT] [-d])
 web/
   drizzle/                           マイグレーションの SQL
   scripts/check-real-repos.mts       実際のリポジトリに対する読み取り専用の確認

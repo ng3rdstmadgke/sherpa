@@ -33,15 +33,17 @@ playwright-cli install-browser chrome
 ## 3. 起動して確かめる
 
 ```bash
-cd ~/sherpa/web
-npm run dev      # http://127.0.0.1:4747
+~/sherpa/bin/sherpa run -d          # npm run dev (http://127.0.0.1:4747)
+~/sherpa/bin/sherpa run -d -p 4748  # ポートを変える
 ```
 
+- `bin/sherpa` は、nvm があれば `web/.nvmrc` の版に切り替え、`node_modules` がないか `package-lock.json` が更新されていれば `npm install` する。`-d` を付けなければ、ソースがビルドより新しいときだけ `npm run build` してから `npm run start` する
+- `web/` で直接 `npm run dev` してもよい (`nvm use` を済ませてから)
 - 同じディレクトリで `npm run dev` を 2 つ同時に起動することはできない。動いていればそれを使う
 - `npm run dev` は実際の DB (`~/.local/share/sherpa/sherpa.db`) に書き込む。試しに登録したプロジェクトなどを残したくないときは、一時ファイルを指定して起動する
 
   ```bash
-  SHERPA_DB=/tmp/sherpa-try.db npm run dev
+  SHERPA_DB=/tmp/sherpa-try.db ~/sherpa/bin/sherpa run -d
   ```
 
 - テストと確認のしかたは [testing.md](testing.md)

@@ -64,20 +64,21 @@ npm install
 
 ### 起動
 
+`bin/sherpa` で起動します。Node.js の版の切り替え (`web/.nvmrc`)、必要なときの `npm install` とビルドは、このコマンドが行います。
 
 ```bash
-cd ~/sherpa/web
-nvm use                      # web/.nvmrc の版 (24) に切り替える。シェルを開くたびに要る
+~/sherpa/bin/sherpa run              # ビルドして起動する (http://127.0.0.1:4747)。ソースが変わっていなければビルドしない
+~/sherpa/bin/sherpa run -p 4748      # ポートを指定する
+~/sherpa/bin/sherpa run -d           # 開発用として起動する (npm run dev)
+~/sherpa/bin/sherpa --help
+```
 
-# 開発用として起動する
-(nvm use && npm run dev)                  # http://127.0.0.1:4747 で待ち受ける
+`Ctrl+C` で止まります。どこからでも `sherpa` で起動したい場合は、PATH の通ったディレクトリにリンクを作ります。
 
-# ビルドして起動する
-(nvm use && npm run build && npm run start)
-
-# ポートを指定する場合
-(nvm use && PORT=4748 npm run dev)
-(nvm use && npm run build && PORT=4748 npm run start)
+```bash
+mkdir -p ~/.local/bin
+ln -s ~/sherpa/bin/sherpa ~/.local/bin/sherpa
+sherpa run
 ```
 
 ローカルのPCで http://localhost:4747 にアクセス
