@@ -74,6 +74,10 @@ nvm use                      # web/.nvmrc の版 (24) に切り替える。シ�
 
 # ビルドして起動する
 (nvm use && npm run build && npm run start)
+
+# ポートを指定する場合
+(nvm use && PORT=4748 npm run dev)
+(nvm use && npm run build && PORT=4748 npm run start)
 ```
 
 ローカルのPCで http://localhost:4747 にアクセス
