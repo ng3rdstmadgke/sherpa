@@ -7,7 +7,7 @@ import { visiblePaths } from "./files"
 import { parseRgLine } from "./git-parse"
 import type { WtCtx } from "./projects"
 
-// 検索 (docs/implementation-plan.md §4.5, §4.6)
+// 検索 (docs/agent-tasks/init/implementation-plan.md §4.5, §4.6)
 
 export type SearchParams = SearchOptions & { q: string; include: string; exclude: string; ignored: boolean }
 

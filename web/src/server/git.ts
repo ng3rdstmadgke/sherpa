@@ -7,7 +7,7 @@ import { git, gitText, type GitCtx } from "./exec"
 import { LOG_FORMAT, parseForEachRef, parseLog, parseRawNumstat, parseUnifiedDiff } from "./git-parse"
 import type { WtCtx } from "./projects"
 
-// 機能ごとの git のコマンド (docs/implementation-plan.md §3)
+// 機能ごとの git のコマンド (docs/agent-tasks/init/implementation-plan.md §3)
 
 const DIFF_OPTS = ["--no-ext-diff", "--no-textconv", "--no-color"]
 export const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|ico|bmp|avif)$/i

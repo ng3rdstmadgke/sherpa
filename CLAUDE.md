@@ -4,7 +4,7 @@
 
 ## 資料
 
-- 仕様: `docs/spec-draft.md` (§6 がモックとの差異)
+- 仕様: `docs/agent-tasks/init/spec-draft.md` (§6 がモックとの差異)
 - 起動方法とポートフォワード: `README.md`
 - アプリ: `web/` (Next.js 16 + Tailwind CSS v4 + shadcn/ui)
 - 本実装前のモック: `mock/` (git の管理外。手元にだけある。ない場合は使わない)

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 
 // 画面の状態 (開いているタブ・分割レイアウトなど) を保存し、再起動後に復元する。
 // 最初の描画で値が揃っているよう、page.tsx が SQLite から読んだ値を initPersist で受け取る。
-// 変更は 500 ms まとめてから PUT /api/ui-state で書く (docs/implementation-plan.md §2.6)
+// 変更は 500 ms まとめてから PUT /api/ui-state で書く (docs/agent-tasks/init/implementation-plan.md §2.6)
 
 const store = new Map<string, unknown>()
 const pendingSet = new Map<string, unknown>()

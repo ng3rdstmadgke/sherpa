@@ -4,7 +4,7 @@ import { parse as parseJsonc } from "jsonc-parser"
 import type { PathMapping } from "@/lib/types"
 import { isInside } from "./paths"
 
-// worktree の検出とパスの読み替え (docs/implementation-plan.md §3.2)。
+// worktree の検出とパスの読み替え (docs/agent-tasks/init/implementation-plan.md §3.2)。
 // git worktree list は使わない (コンテナ内のパスを prunable と誤判定するため)。.git/worktrees/*/gitdir を読む
 
 export type WorktreeInfo = {

@@ -4,7 +4,7 @@
 **閲覧専用**で、編集や git の操作 (add / commit など)、tmux との連携は範囲外とする。AI の操作やコマンドの実行は引き続き tmux で行う。
 
 本実装: `web/` (サーバーの API で fs・git・rg から読む。保存は SQLite)。モック (ダミーデータ) は公開していない。
-本実装の計画と、仕様どおりにできなかった点 (未決事項): `docs/implementation-plan.md`。
+本実装の計画と、仕様どおりにできなかった点 (未決事項): `docs/agent-tasks/init/implementation-plan.md`。
 
 ## 1. 解決したい課題
 
@@ -398,7 +398,7 @@ GIT_WORK_TREE=~/webapp/.worktree/33_new_region git status
   - worktree 自体は保存しない (毎回 `.git/worktrees` から作る)
 - ライブラリ: `better-sqlite3` + Drizzle ORM
 - DB ファイルの置き場所: `~/.local/share/sherpa/sherpa.db` (環境変数 `SHERPA_DB` で変えられる)
-- テーブルの設計: `docs/implementation-plan.md` §7
+- テーブルの設計: `docs/agent-tasks/init/implementation-plan.md` §7
 
 ## 5. 未決事項
 
@@ -406,7 +406,7 @@ GIT_WORK_TREE=~/webapp/.worktree/33_new_region git status
 
 ## 6. モックとの差異
 
-モックで仕様どおりに動かなかった次の点は、本実装ですべて解消した。確認のしかたは `docs/implementation-plan.md` §13。
+モックで仕様どおりに動かなかった次の点は、本実装ですべて解消した。確認のしかたは `docs/agent-tasks/init/implementation-plan.md` §13。
 
 | 項目 | モックの状態 | 本実装 |
 | --- | --- | --- |

@@ -4,7 +4,7 @@ import { existsSync } from "node:fs"
 import { sep } from "node:path"
 import { ApiError } from "./errors"
 
-// git / rg の実行 (docs/implementation-plan.md §3.1)。シェルは通さない。同時に 8 個まで
+// git / rg の実行 (docs/agent-tasks/init/implementation-plan.md §3.1)。シェルは通さない。同時に 8 個まで
 
 export type RunResult = { stdout: Buffer; stderr: string; code: number; truncated: boolean }
 

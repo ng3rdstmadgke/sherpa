@@ -4,7 +4,7 @@ import { useEffect, useSyncExternalStore } from "react"
 import { useQueryClient, type QueryClient } from "@tanstack/react-query"
 import type { WatchEvent } from "./types"
 
-// 自動更新の通知 (SSE) を受け取る (docs/implementation-plan.md §5.2, §5.3)。
+// 自動更新の通知 (SSE) を受け取る (docs/agent-tasks/init/implementation-plan.md §5.2, §5.3)。
 // ブラウザは EventSource を 1 つだけ張る (HTTP/1.1 では同じサーバーへの接続が 6 本までのため)
 
 const listeners = new Set<(e: WatchEvent) => void>()

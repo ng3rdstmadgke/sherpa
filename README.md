@@ -1,92 +1,100 @@
-# sherpa
+# Sherpa
 
-複数の開発プロジェクト (git リポジトリ / worktree) のソースコード・Markdown・git 差分を、1 つのブラウザ画面で横断して閲覧するローカル Web アプリ。
+## Overview
 
-- 仕様: [docs/spec-draft.md](docs/spec-draft.md)、本実装の計画と未決事項: [docs/implementation-plan.md](docs/implementation-plan.md)
-- アプリ本体: [web/](web/) (Next.js + Tailwind CSS + shadcn/ui。サーバーは Route Handler から git と ripgrep を呼ぶ)
-- 保存: SQLite (`~/.local/share/sherpa/sherpa.db`。環境変数 `SHERPA_DB` で変えられる)
-- ripgrep は npm の `@vscode/ripgrep` に同梱のものを使う (`npm install` で入る)。git は開発サーバーのものを使う
+Sherpa は、複数の開発プロジェクト (git リポジトリ / worktree) のソースコード・Markdown・git の差分を、1 つのブラウザ画面で横断して閲覧するローカル Web アプリです。
+プロジェクトごとに VS Code を開いたり devcontainer にアタッチしたりしなくても、ブラウザのタブを切り替えるだけで、AI が書いた spec や変更の中身を確かめられます。
 
-## 起動 (開発サーバー上)
+- **プロジェクトと worktree をタブで開く**: 登録したリポジトリの worktree ごとにタブを開き、並べて見比べられます。devcontainer の中で作った worktree も、パスを読み替えて開けます
+- **ファイルを見る**: ツリー、シンタックスハイライト、Markdown のプレビュー (GFM・mermaid・画像)、内容とファイル名の検索 (ripgrep)
+- **SPEC**: AI が作る設計資料 (spec / plan など) の置き場所を worktree ごとに指定し、ツリーの上に常に表示します
+- **git の差分を見る**: 未コミットの差分、任意のブランチとの比較 (マージベースから)、そのブランチにないコミットの一覧と詳細。Unified / Split で表示できます
+- **画面分割**: タブをドラッグして、左右・上下に分割できます
+- **自動更新**: ファイルが書き換わると、開いているタブと差分を自動で読み直します
+- **閲覧専用**: 編集や git の操作 (add / commit / fetch など) はしません
+
+開発サーバー (Linux) の上で起動し、`127.0.0.1:4747` でだけ待ち受けます。手元の PC からは SSH のポートフォワードを通して開きます。
+
+仕様は [docs/agent-tasks/init/spec-draft.md](docs/agent-tasks/init/spec-draft.md)、実装の設計は [docs/agent-tasks/init/implementation-plan.md](docs/agent-tasks/init/implementation-plan.md) にあります。
+
+## Getting started
+
+### 依存パッケージのインストール
+
+開発サーバーに次のものが必要です。
+
+| もの | 用途 |
+| --- | --- |
+| Node.js 22 以上 (24 で確認) | アプリの実行 |
+| git | リポジトリの読み取り |
+| gcc / make / python3 | SQLite のドライバ (better-sqlite3) のビルド |
+
+ripgrep は npm のパッケージに同梱のものを使うので、別に入れる必要はありません。
+
+#### Ubuntu 24.04 の場合
+
+apt で git とビルドに使うものを入れます。
+
+```bash
+sudo apt update
+sudo apt install -y git build-essential python3 curl
+```
+
+Node.js は nvm で入れます (apt の nodejs は 18 系で、古くて使えません)。
+`nvm install` はシェルの既定の版 (`nvm alias default`) を変えません。Sherpa を動かすときは、`web/.nvmrc` に書いた版 (24) に `nvm use` で切り替えます。
+
+```bash
+# nvm の最新の版を調べる (github.com の releases/latest のリダイレクト先が最新のタグ)
+NVM_VERSION=$(basename "$(curl -fsSLI -o /dev/null -w '%{url_effective}' https://github.com/nvm-sh/nvm/releases/latest)")
+echo "$NVM_VERSION"   # v0.40.8 のように出る
+curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh" | bash
+source ~/.bashrc
+nvm install 24
+```
+
+#### Sherpa のパッケージインストール
+
+```bash
+git clone https://github.com/ng3rdstmadgke/sherpa.git ~/sherpa
+cd ~/sherpa/web
+nvm use          # web/.nvmrc の版 (24) に切り替える
+node --version   # v24.x と出れば OK
+npm install
+```
+
+### 起動
+
 
 ```bash
 cd ~/sherpa/web
-npm install      # 初回のみ
-npm run dev      # http://127.0.0.1:4747 で待ち受け
-PORT=4800 npm run dev   # ポートを変える場合
-npm test                # vitest (単体テストと、一時ディレクトリの git リポジトリでの結合テスト)
-npx tsx scripts/check-real-repos.mts ~/repo-a ~/repo-b='archives/**'   # 手元の実際のリポジトリに対する読み取り専用の確認 (= の後は除外パターン)
+nvm use                      # web/.nvmrc の版 (24) に切り替える。シェルを開くたびに要る
+
+# 開発用として起動する
+(nvm use && npm run dev)                  # http://127.0.0.1:4747 で待ち受ける
+
+# ビルドして起動する
+(nvm use && npm run build && npm run start)
 ```
 
-- プロジェクトはホームの「プロジェクトを登録」で登録する (ホームの下の git リポジトリのディレクトリ)
+ローカルのPCで http://localhost:4747 にアクセス
 
-- ポートの既定値は **4747**。3000 などの、他の開発ツールがよく使うポートと重ならない番号にしている
-- サーバー上のファイルを読むアプリなので、`127.0.0.1` でのみ待ち受ける。
-  IP アドレス (例 `http://<開発サーバーの IP>:4747`) を指定して直接アクセスすることはできない
-- 手元の PC からは、SSH のポートフォワードを使って開く (次の節)
+- 登録したプロジェクトや画面の状態 (開いていたタブ・分割・テーマなど) は SQLite (`~/.local/share/sherpa/sherpa.db`) に保存し、次に開いたときに復元します。場所は環境変数 `SHERPA_DB` で変えられます
 
-## 手元の PC から開く (SSH ポートフォワード)
+### SSH ポートフォワード
 
-サーバーの `127.0.0.1:4747` を、SSH の接続を通して手元の PC の `localhost:4747` に転送する。
+リモートサーバーでSherpaを実行する場合、手元のPCから http://localhost:4747 でアクセスするには SSH ポートフォワードが必要です。
+`~/.ssh/config` に以下のように `LocalForward 4747 127.0.0.1:4747` を指定します。
 
-### 設定手順 (最初に 1 回だけ)
+```~/.ssh/config
+# ~/.ssh/config
 
-`~/.ssh/config` に `LocalForward` を 1 行追記しておくと、普段どおりに SSH で接続するだけで転送も始まる。
-
-1. **手元の PC** (開発サーバーではない) で SSH の設定ファイルを開く
-
-   | OS | 場所 |
-   | --- | --- |
-   | macOS / Linux | `~/.ssh/config` |
-   | Windows | `C:\Users\<ユーザー名>\.ssh\config` (拡張子なし) |
-
-   ファイルがなければ新しく作る。
-
-2. 開発サーバーに接続するときに使っている `Host` のブロックを探し、その中に次の 1 行を追記する。
-   インデントは、同じブロックの他の行に合わせる
-
-   ```sshconfig
-   Host <いつも接続に使っているホスト名>
-     HostName <開発サーバーのホスト名 or IP>
-     User <ユーザー名>
-     LocalForward 4747 127.0.0.1:4747    # ← この行を追記
-   ```
-
-   `Host` のブロックがまだない場合 (いつも `ssh <ユーザー名>@<開発サーバーの IP>` のように直接指定して接続している場合) は、上のブロックをまるごと追加する。
-   以後は `ssh <Host に書いた名前>` で接続する
-
-3. 開発サーバーに接続し直す。すでに開いている SSH 接続には反映されないので、一度切断してから接続する
-
-   ```bash
-   ssh <Host に書いた名前>
-   ```
-
-4. 開発サーバー上で sherpa を起動し (`npm run dev`)、手元の PC のブラウザで http://localhost:4747 を開く
-
-SSH で接続している間だけ開ける。tmux を使うためにいつも SSH で接続しているなら、その接続だけで sherpa も開けるようになる。
-
-### うまくいかないとき
-
-| 症状 | 原因と対処 |
-| --- | --- |
-| 接続したときに `bind [127.0.0.1]:4747: Address already in use` と出る | 手元の PC で 4747 番がすでに使われている。よくあるのは、SSH の接続をもう 1 本開いていて、そちらが先に転送している場合。**この場合は警告だけなので無視してよい** (先に開いた接続で転送されている)。他のアプリが 4747 番を使っているなら、`LocalForward 4800 127.0.0.1:4747` のように左側の番号を変え、http://localhost:4800 で開く |
-| ブラウザで開くと、SSH のターミナルに `channel ... open failed: connect failed` と出る | 開発サーバーで sherpa が起動していない。`npm run dev` で起動する |
-| つながらない (`ERR_CONNECTION_REFUSED`) | 手順 3 で接続し直していない。または、追記した `Host` と実際に接続している `Host` が違う。`ssh -G <Host名> \| grep -i localforward` で、設定が読み込まれているか確認できる |
-
-### 設定を書かずに一時的に転送する
-
-```bash
-# 転送だけする接続を別に張る (-N: コマンドを実行しない)
-ssh -N -L 4747:127.0.0.1:4747 <ユーザー名>@<開発サーバー>
+Host remote-server-name
+  HostName 192.168.50.10
+  User ubuntu
+  LocalForward 4747 127.0.0.1:4747    # ← この行を追記
 ```
 
-すでに開いている SSH 接続に後から追加することもできる。改行の直後に `~C` と入力すると `ssh>` という入力欄が出るので、`-L 4747:127.0.0.1:4747` と入力して Enter を押す。
+追記したら、開発サーバーに再接続します。以後は設定どおり、リモートサーバーの `4747` ポートが手元のPCの `4747` ポートにフォワーディングされます。
 
-### VS Code の Remote-SSH を使っている場合
 
-VS Code で開発サーバーに接続している間は、ポート 4747 が自動で転送される (「ポート」タブで確認できる)。上の設定は不要。
-
-## 注意
-
-- 同じディレクトリで `next dev` を 2 つ同時に起動することはできない (Next.js 16 の仕様)。
-  `Another next dev server is already running` と表示されたら、既存のプロセスを止めてから起動し直す。
+ローカルのPCで http://localhost:4747 にアクセス

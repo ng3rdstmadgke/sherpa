@@ -1,4 +1,4 @@
-// サーバーとブラウザで共有する型。モックのダミーデータの型をもとにしている (docs/implementation-plan.md §2.2)
+// サーバーとブラウザで共有する型。モックのダミーデータの型をもとにしている (docs/agent-tasks/init/implementation-plan.md §2.2)
 
 import type { Match } from "./search"
 
