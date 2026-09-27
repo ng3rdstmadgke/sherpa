@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, renameSync, rmSync, symlinkSync, writeFileSync 
 import os from "node:os"
 import path from "node:path"
 
-// 結合テスト用の git リポジトリを一時ディレクトリに作る (docs/how-to/development/testing.md §3)。
+// 結合テスト用の git リポジトリを一時ディレクトリに作る (docs/how-to/development/testing.md §4)。
 // コンテナで作った worktree (.git が偽のコンテナ内のパスを指す) を再現する
 
 export type Fixture = {

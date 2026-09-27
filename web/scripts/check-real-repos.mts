@@ -1,4 +1,4 @@
-// 実際のリポジトリ (引数で渡す) に対する読み取り専用の確認 (docs/how-to/development/testing.md §4)。
+// 実際のリポジトリ (引数で渡す) に対する読み取り専用の確認 (docs/how-to/development/testing.md §5)。
 // DB には登録せず、メモリ上のプロジェクトとしてサーバーの関数を呼び、git を直接実行した結果と比べる。
 // git は必ず server/exec.ts の git() (GIT_OPTIONAL_LOCKS=0、GIT_DIR / GIT_WORK_TREE を明示) から実行する。
 // 実行の前後で .git の index / HEAD / refs などの mtime と大きさを比べ、何も書き換えていないことを確かめる。

@@ -30,7 +30,8 @@
 - `bin/sherpa run [-p <PORT>] [-d]` (リポジトリの直下から): Node.js の切り替え・npm install・必要なときのビルドをしてから起動する。`-d` は `npm run dev`
 - `npm run lint` / `npx tsc --noEmit` / `npm run build` / `npm test`
 - `npx tsx scripts/check-real-repos.mts <repo> [<repo>=<除外>,…]`: 実際のリポジトリに対する読み取り専用の確認
-- `npx tsc --noEmit` の `LayoutProps` のエラーは、Next.js が起動時に型を生成するまで出るもので無視してよい
+- `npx tsc --noEmit` の `LayoutProps` のエラーは、Next.js がまだ型を生成していないときに出る。`npx next typegen` を先に実行すれば出ない
+- CI (`.github/workflows/ci.yml`) は push / pull request で lint・型チェック・`npm test`・build を流す。流す手順を変えたら `docs/how-to/development/testing.md` §2 も直す
 - `npm run build` の `globals.css` の `::highlight(...)` の警告 (Turbopack の CSS パーサーが知らない擬似要素) は無視してよい。規則は出力に残り、Ctrl+F の強調は効く
 
 ## 守ること

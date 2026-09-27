@@ -1,0 +1,44 @@
+# lint・型チェック・テスト・ビルドを流す (手順は docs/how-to/development/testing.md)
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# 同じブランチで新しく push したら、前の実行を止める
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: web/.nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # better-sqlite3 は node-gyp でビルドする (ubuntu のランナーには gcc / make / python3 がある)
+      - run: npm ci
+
+      - run: npm run lint
+
+      # まっさらな状態では LayoutProps などの型がないので、先に Next.js に型を作らせる
+      - run: npx next typegen && npx tsc --noEmit
+
+      # 結合テストは一時ディレクトリに git リポジトリを作る (git はランナーのものを使う)
+      - run: npm test
+
+      - run: npm run build

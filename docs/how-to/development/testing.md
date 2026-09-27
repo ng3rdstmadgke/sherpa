@@ -11,10 +11,24 @@ npm test              # vitest (単体テストと結合テスト)
 npm run build         # 大きく変えたとき
 ```
 
-- `npx tsc --noEmit` の `LayoutProps` のエラーは、Next.js が起動時に型を生成するまで出るもので無視してよい
+- `npx tsc --noEmit` の `LayoutProps` のエラーは、Next.js がまだ型を生成していないときに出る。`npx next typegen` を先に実行すれば出ない
 - `npm run build` の `globals.css` の `::highlight(...)` の警告は無視してよい (Turbopack の CSS パーサーが知らない擬似要素。規則は出力に残る)
 
-## 2. 単体テスト (`web/test/unit/`)
+## 2. CI (GitHub Actions)
+
+`.github/workflows/ci.yml` が、`main` への push と pull request のたびに、上と同じものを流す。
+
+1. `npm ci` (better-sqlite3 は node-gyp でビルドする)
+2. `npm run lint`
+3. `npx next typegen && npx tsc --noEmit` (まっさらな状態では Next.js の型がないので、先に作る)
+4. `npm test`
+5. `npm run build`
+
+- ランナーは `ubuntu-24.04`、Node.js は `web/.nvmrc` の版。npm のキャッシュを使う
+- 結合テストはランナーの git で、一時ディレクトリにリポジトリを作る。実際のリポジトリの確認スクリプト (§5) は CI では流さない
+- 手元で同じ手順を確かめるときは、まっさらな clone で `npm ci` から流す
+
+## 3. 単体テスト (`web/test/unit/`)
 
 純粋な関数と、git / rg の出力のパーサーが対象。
 
@@ -23,7 +37,7 @@ npm run build         # 大きく変えたとき
 | `lib.test.ts` | glob (`**` と `*`、ディレクトリへの当てはめ、検索の対象 / 対象外の解釈)、SPEC 欄の解釈、検索語の解釈 (単語単位の日本語を含む)、相対時間の表示、Host / Origin / Content-Type の確認 |
 | `server.test.ts` | `diff --raw --numstat -z` (名前の変更・バイナリ・日本語とスペースのあるパス)、`for-each-ref`、`log`、unified diff → `DiffLine[]`、rg の JSON (バイト位置 → UTF-16 の位置)、パスの検証、パスの読み替え、ツリーの組み立て |
 
-## 3. 結合テスト (`web/test/integration/`)
+## 4. 結合テスト (`web/test/integration/`)
 
 `web/test/fixtures/make-repo.ts` が一時ディレクトリにリポジトリを作り、サーバーの関数・Route Handler・監視を実際に動かす。
 
@@ -46,7 +60,7 @@ npm run build         # 大きく変えたとき
 
 結合テストはファイルごとに順に流す (`fileParallelism: false`)。
 
-## 4. 実際のリポジトリの確認 (`web/scripts/check-real-repos.mts`)
+## 5. 実際のリポジトリの確認 (`web/scripts/check-real-repos.mts`)
 
 手元の実際のリポジトリを読み取りだけで確かめる。確認に使うリポジトリは公開しないので、引数で渡す。
 
@@ -60,7 +74,7 @@ npx tsx scripts/check-real-repos.mts ~/repo-a ~/repo-b='archives/**,tmp/**'
 - 実行の前後で `.git` の `index`・`HEAD`・`packed-refs`・`config`・`refs`・`worktrees/*` の mtime と大きさを比べ、変わっていたら NG にする
 - NG が 1 つでもあれば終了コード 1
 
-## 5. 画面で確かめる
+## 6. 画面で確かめる
 
 - playwright-cli のスキルで操作し、スクリーンショットを撮って確かめる (入れ方は [setup.md](setup.md))
 - 実際のリポジトリに書き込まずに自動更新を確かめたいときは、ホームの下に使い捨てのリポジトリを作って登録し、そのファイルを書き換える。終わったら登録を解除して消す
