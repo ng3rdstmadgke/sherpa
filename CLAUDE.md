@@ -4,13 +4,25 @@
 
 ## 資料
 
-- 仕様と仕組みの正本: `docs/architecture/overview.md` (機能ごとの詳細は `docs/architecture/*.md`)。機能を変えたら、対応するファイルを同じコミットで直す
+- 仕様と仕組みの正本: `docs/architecture/overview.md` (機能ごとの詳細は `docs/architecture/*.md`)
 - 開発の手順書: `docs/how-to/development/` (環境の整え方 `setup.md`、テストと確認 `testing.md`)。開発の手順を書くときもここに置く
 - 初回の実装のときの資料 (仕様のドラフト・実装計画・経緯): `docs/agent-tasks/init/` (更新しない)
 - 起動方法とポートフォワード: `README.md`
 - アプリ: `web/` (Next.js 16 + Tailwind CSS v4 + shadcn/ui)
   - サーバーの部品は `web/src/server/`、API は `web/src/app/api/`、ブラウザからの呼び出しは `web/src/lib/api.ts` (TanStack Query)
   - 画面の状態の保存は `web/src/lib/persist.ts` (SQLite の `ui_state`。page.tsx が読んで渡し、変更は `PUT /api/ui-state` でまとめて書く)
+
+## 資料の直し方
+
+- コードを変えたら (画面の動き・API・git のコマンド・保存・上限や時間の値・開発の手順など)、同じコミットで `docs/architecture/` と `docs/how-to/` の該当する所を、変えたあとの仕様に合わせて直す
+  - 直す所がないと思っても、関係するファイルを読んで確かめる
+  - 新しい機能で当てはまるファイルがなければ、`docs/architecture/` に作り、`overview.md` の表に足す
+- 書くのは**今の仕様だけ**。過去の仕様は残さない
+  - 「以前は」「〜から変えた」「旧:」「(v2 では)」のような経緯や比較を書かない。書き換えた所は、はじめからそうだったように書く
+  - なくした機能や設定は、記述ごと消す (「廃止」「使わない」と残さない)
+  - 経緯や理由の移り変わりはコミットメッセージに書く。今の仕様の理由 (なぜそうしているか) は書いてよい
+- 値 (上限・時間・コマンドの引数など) はコードに合わせる。推測で書かない
+- `docs/agent-tasks/` は作業ごとの記録なので、ここに合わせて直さない
 
 ## コマンド (web/ で実行)
 
