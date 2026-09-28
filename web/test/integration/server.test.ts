@@ -348,7 +348,6 @@ describe("検索", () => {
   const p = (q: string, o: Partial<import("@/server/search").SearchParams> = {}) => ({
     q,
     caseSensitive: false,
-    wholeWord: false,
     regex: false,
     include: "",
     exclude: "",
@@ -358,10 +357,9 @@ describe("検索", () => {
   const lines = async (q: string, o: Partial<import("@/server/search").SearchParams> = {}) =>
     (await S.search.searchContent(await ctx(), p(q, { include: "src", ...o }))).hits.map((h) => `${h.path}:${h.line}`)
 
-  it("Aa / ab / .* と、対象 / 対象外", async () => {
+  it("Aa / .* と、対象 / 対象外", async () => {
     expect(await lines("hello")).toEqual(["src/a.ts:1", "src/a.ts:2", "src/a.ts:3"])
     expect(await lines("Hello", { caseSensitive: true })).toEqual(["src/a.ts:1"])
-    expect(await lines("hello", { wholeWord: true })).toEqual(["src/a.ts:1", "src/a.ts:3"])
     expect(await lines("hel+o\\b", { regex: true })).toEqual(["src/a.ts:1", "src/a.ts:3"])
     expect(await lines("hel+o", {})).toEqual([])
     // 後読み (PCRE2)

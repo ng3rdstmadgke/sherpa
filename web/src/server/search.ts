@@ -51,7 +51,6 @@ export async function searchContent(ctx: WtCtx, p: SearchParams): Promise<Conten
     "1000",
     "--max-columns-preview",
     p.caseSensitive ? "-s" : "-i",
-    ...(p.wholeWord ? ["-w"] : []),
     ...(p.regex ? [] : ["-F"]),
     ...(p.ignored ? ["--no-ignore"] : []),
     ...globs,

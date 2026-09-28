@@ -6,7 +6,7 @@
 ┌ sherpa ─ [Projects] [● webapp ×] [● webapp / 33_new_region ×] [● infra ×] [⚙ 設定 ×] [+] ─ ☾ ⚙ ┐
 ├ [⎇ worktree ▼] [比較: main +未コミット ▼] [📄 SPEC: agent-tasks/…/*  4 件] (i)                  ⟳• ┤
 │📄│ /Contents\ /File\    │ [spec.md ×][regions.ts ×]  ◫ ⊟ × │ [overview.md (main) ×]    ◫ ⊟ × │
-│⎇ │ [🔍 検索  Aa ab .*]  │ regions.ts                         │ overview.md                      │
+│⎇ │ [🔍 検索  Aa .*]     │ regions.ts                         │ overview.md                      │
 │  │ ▾ SPEC (4)           │ [Unified|Split] [差分|全体]        │ [プレビュー|ソース] [差分|全体]  │
 │  │ ▾ EXPLORER           │  (エディタグループ 1)              │  (エディタグループ 2)            │
 └──┴──────────────────────┴────────────────────────────────────┴──────────────────────────────────┘

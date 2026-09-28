@@ -24,7 +24,7 @@ export type SearchMode = "content" | "name"
 
 // 検索欄の入力。Contents / File のタブごとに別々に持つ
 type SearchForm = SearchOptions & { q: string; include: string; exclude: string }
-const emptyForm: SearchForm = { q: "", caseSensitive: false, wholeWord: false, regex: false, include: "", exclude: "" }
+const emptyForm: SearchForm = { q: "", caseSensitive: false, regex: false, include: "", exclude: "" }
 
 // 検索中の状態。null なら検索していない
 type ActiveSearch = {
@@ -287,7 +287,6 @@ export function FilesPanel({
             />
             <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-0.5">
               <OptionToggle label="Aa" title="大文字小文字を区別" on={form.caseSensitive} onClick={() => setForm({ caseSensitive: !form.caseSensitive })} />
-              <OptionToggle label="ab" title="単語単位" on={form.wholeWord} onClick={() => setForm({ wholeWord: !form.wholeWord })} />
               <OptionToggle label=".*" title="正規表現" on={form.regex} onClick={() => setForm({ regex: !form.regex })} />
               {form.q && (
                 <button onClick={() => setForm({ q: "" })} className="rounded p-0.5 text-muted-foreground hover:bg-accent" title="クリア (Esc)">

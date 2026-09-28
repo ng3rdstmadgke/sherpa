@@ -63,25 +63,20 @@ describe("spec", () => {
 })
 
 describe("buildMatcher", () => {
-  const find = (q: string, o: Partial<{ caseSensitive: boolean; wholeWord: boolean; regex: boolean }>, text: string) => {
-    const m = buildMatcher(q, { caseSensitive: false, wholeWord: false, regex: false, ...o })
+  const find = (q: string, o: Partial<{ caseSensitive: boolean; regex: boolean }>, text: string) => {
+    const m = buildMatcher(q, { caseSensitive: false, regex: false, ...o })
     if (!m || "error" in m) throw new Error("no matcher")
     return m.find(text)
   }
   it("空は null、正しくない正規表現はエラー", () => {
-    expect(buildMatcher("", { caseSensitive: false, wholeWord: false, regex: false })).toBeNull()
-    expect(buildMatcher("(", { caseSensitive: false, wholeWord: false, regex: true })).toEqual({ error: "正規表現が正しくありません" })
+    expect(buildMatcher("", { caseSensitive: false, regex: false })).toBeNull()
+    expect(buildMatcher("(", { caseSensitive: false, regex: true })).toEqual({ error: "正規表現が正しくありません" })
   })
   it("大文字小文字・正規表現・記号のエスケープ", () => {
     expect(find("abc", {}, "ABC abc")).toHaveLength(2)
     expect(find("abc", { caseSensitive: true }, "ABC abc")).toEqual([{ start: 4, end: 7 }])
     expect(find("a.c", {}, "abc a.c")).toEqual([{ start: 4, end: 7 }])
     expect(find("a.c", { regex: true }, "abc a.c")).toHaveLength(2)
-  })
-  it("単語単位は日本語の文字も単語の一部として扱う", () => {
-    expect(find("test", { wholeWord: true }, "テストtest")).toEqual([])
-    expect(find("test", { wholeWord: true }, "テスト test")).toEqual([{ start: 4, end: 8 }])
-    expect(find("test", { wholeWord: true }, "test_x")).toEqual([])
   })
   it("空文字に一致する正規表現で止まらない", () => {
     expect(find("x*", { regex: true }, "abx")).toEqual([{ start: 2, end: 3 }])

@@ -1,7 +1,7 @@
-// 検索語の解釈 (大文字小文字の区別 / 単語単位 / 正規表現)。
-// 本実装では同じ条件を ripgrep のオプション (-s / -w / -F) に渡す
+// 検索語の解釈 (大文字小文字の区別 / 正規表現)。
+// 本実装では同じ条件を ripgrep のオプション (-s / -F) に渡す
 
-export type SearchOptions = { caseSensitive: boolean; wholeWord: boolean; regex: boolean }
+export type SearchOptions = { caseSensitive: boolean; regex: boolean }
 export type Match = { start: number; end: number }
 export type Matcher = { find: (text: string) => Match[] } | { error: string }
 
@@ -9,9 +9,7 @@ const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 
 export function buildMatcher(q: string, opts: SearchOptions): Matcher | null {
   if (!q) return null
-  let source = opts.regex ? q : escape(q)
-  // 単語単位: 前後が文字・数字・_ でないこと (日本語の文字も単語の一部として扱う)
-  if (opts.wholeWord) source = `(?<![\\p{L}\\p{N}_])(?:${source})(?![\\p{L}\\p{N}_])`
+  const source = opts.regex ? q : escape(q)
   let re: RegExp
   try {
     re = new RegExp(source, `gu${opts.caseSensitive ? "" : "i"}`)

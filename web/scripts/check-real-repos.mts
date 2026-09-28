@@ -203,7 +203,7 @@ async function checkWorktree(repo: string, ctx: WtCtx, compareBranch: string | n
     "search",
     async () => {
       const word = /[A-Za-z]{5,}/.exec(firstText)?.[0] ?? "main"
-      const opts = { caseSensitive: false, wholeWord: false, regex: false, include: "", exclude: "", ignored: false }
+      const opts = { caseSensitive: false, regex: false, include: "", exclude: "", ignored: false }
       const r = await searchContent(ctx, { ...opts, q: word })
       assert(r.hits.length > 0, `「${word}」がヒットしない`)
       for (const h of r.hits) {

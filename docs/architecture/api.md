@@ -37,7 +37,7 @@
 | `GET …/wt/compare?branch=&includeUncommitted=0\|1` | | `CompareResult` |
 | `GET …/wt/diff?path=&oldPath=&base=` | `base` は `uncommitted` / `branch:<b>` / `branch-wt:<b>` / `commit:<hash>` | `DiffResult` |
 | `GET …/wt/commits/:hash` | | `Commit` (`files` あり) |
-| `GET …/wt/search/content?q=&caseSensitive=&wholeWord=&regex=&include=&exclude=&ignored=` | 真偽値は `0` / `1` | `ContentSearchResult` (`{ hits; truncated }`) |
+| `GET …/wt/search/content?q=&caseSensitive=&regex=&include=&exclude=&ignored=` | 真偽値は `0` / `1` | `ContentSearchResult` (`{ hits; truncated }`) |
 | `GET …/wt/search/files?…(同上)` | | `NameSearchResult` (`{ files: { path, ignored }[]; truncated }`) |
 
 ## 3. 主な型

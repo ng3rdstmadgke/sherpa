@@ -16,7 +16,6 @@ function searchParams(q: URLSearchParams): SearchParams {
   return {
     q: q.get("q") ?? "",
     caseSensitive: flag(q, "caseSensitive"),
-    wholeWord: flag(q, "wholeWord"),
     regex: flag(q, "regex"),
     include: q.get("include") ?? "",
     exclude: q.get("exclude") ?? "",
