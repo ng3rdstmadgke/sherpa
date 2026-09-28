@@ -130,14 +130,22 @@
   }
 }
 /* ---- shiki (light / dark 両対応) ---- */
+/* 太字・斜体・下線もテーマのとおりにする (Markdown の見出しや強調、リンクなど)。
+   その変数がない span では、var() が無効になって親から継ぐ */
 .shiki,
 .shiki span {
   color: var(--shiki-light);
+  font-style: var(--shiki-light-font-style);
+  font-weight: var(--shiki-light-font-weight);
+  text-decoration: var(--shiki-light-text-decoration);
   background-color: transparent !important;
 }
 .dark .shiki,
 .dark .shiki span {
   color: var(--shiki-dark);
+  font-style: var(--shiki-dark-font-style);
+  font-weight: var(--shiki-dark-font-weight);
+  text-decoration: var(--shiki-dark-text-decoration);
 }
 
 .code-view pre {
