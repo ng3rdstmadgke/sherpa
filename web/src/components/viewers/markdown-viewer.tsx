@@ -5,6 +5,7 @@ import ReactMarkdown, { type Options } from "react-markdown"
 import { cn } from "cn"
 import remarkGfm from "remark-gfm"
 import { buildMarkdownDiff, diffSides, type MdDiffSide, type MdNode } from "@/lib/diff"
+import { createSlugger } from "@/lib/slug"
 import type { DiffLine } from "@/lib/types"
 import { useHighlight } from "./code-viewer"
 import { MermaidDiagram } from "./mermaid-diagram"
@@ -45,6 +46,39 @@ function MarkdownImage({ src, alt, name }: { src: string; alt: string; name: str
   )
 }
 
+type HastNode = { type: string; tagName?: string; value?: string; properties?: Record<string, unknown>; children?: HastNode[] }
+const textOf = (n: HastNode): string => (n.type === "text" ? (n.value ?? "") : (n.children ?? []).map(textOf).join(""))
+
+// 見出しに、リンク先の名前 (GitHub と同じ作り方) を data-heading-id で付ける。
+// id にしないのは、画面のほかの要素の id とぶつからないようにするため (同じファイルを 2 つのグループで開くこともある)
+function rehypeHeadingIds() {
+  return (tree: HastNode) => {
+    const slug = createSlugger()
+    const walk = (n: HastNode) => {
+      if (n.type === "element" && /^h[1-6]$/.test(n.tagName ?? "")) n.properties = { ...n.properties, dataHeadingId: slug(textOf(n)) }
+      n.children?.forEach(walk)
+    }
+    walk(tree)
+  }
+}
+
+// `#見出し` のリンク。同じプレビューの中の見出し (なければ同じ id の要素。脚注など) へスクロールする
+function scrollToAnchor(from: HTMLElement, hash: string) {
+  const root = from.closest(".markdown-body")
+  if (!root) return
+  let name = hash
+  try {
+    name = decodeURIComponent(hash)
+  } catch {
+    // 正しくない % の並びは、そのまま使う
+  }
+  if (!name) return root.scrollIntoView({ block: "start" })
+  const q = (sel: string) => root.querySelector<HTMLElement>(sel)
+  const target =
+    q(`[data-heading-id="${CSS.escape(name)}"]`) ?? q(`[data-heading-id="${CSS.escape(name.toLowerCase())}"]`) ?? q(`[id="${CSS.escape(name)}"]`)
+  target?.scrollIntoView({ block: "start" })
+}
+
 type ViewerProps = {
   onOpenLink?: (href: string) => void
   resolveImage?: (src: string) => string
@@ -61,6 +95,7 @@ export function MarkdownViewer({
     <article className="markdown-body px-8 py-6">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, ...(remarkPlugins ?? [])]}
+        rehypePlugins={[rehypeHeadingIds]}
         components={{
           code({ className, children, ...props }) {
             const lang = /language-(\w+)/.exec(className ?? "")?.[1]
@@ -81,7 +116,20 @@ export function MarkdownViewer({
             return <MarkdownImage src={resolveImage(path)} alt={alt ?? ""} name={path.split(/[?#]/)[0].split("/").pop() ?? ""} />
           },
           a({ href, children }) {
-            const isRelative = href && !/^(https?:|#|mailto:)/.test(href)
+            // `#見出し` だけのリンクは、別のタブで開かずに、同じファイルの中をスクロールする
+            if (href?.startsWith("#"))
+              return (
+                <a
+                  href={href}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    scrollToAnchor(e.currentTarget, href.slice(1))
+                  }}
+                >
+                  {children}
+                </a>
+              )
+            const isRelative = href && !/^(https?:|mailto:)/.test(href)
             return (
               <a
                 href={href}

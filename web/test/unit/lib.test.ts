@@ -7,6 +7,7 @@ import { checkRequest, hostname, isPreviewRequest } from "@/lib/request-guard"
 import { DEFAULT_EXCLUDES, parseExcludeLines } from "@/lib/excludes"
 import { buildMarkdownDiff, diffSides, withinHighlightLimit, type MdNode } from "@/lib/diff"
 import type { DiffLine } from "@/lib/types"
+import { createSlugger } from "@/lib/slug"
 import { closeAllTabs, createLayout, findGroup, groups, moveTab, openTab } from "@/components/workspace/editor-layout"
 import { unified } from "unified"
 import remarkParse from "remark-parse"
@@ -256,5 +257,20 @@ describe("タブの表示のしかた", () => {
     expect(tabOf(l)).toEqual({ kind: "file", path: "a.md", display: "diff", format: "split", md: "source" })
     l = openTab(l, { kind: "file", path: "a.md", line: 3, display: "file", md: "source" })
     expect(tabOf(l)).toEqual({ kind: "file", path: "a.md", line: 3, display: "file", format: "split", md: "source" })
+  })
+})
+
+describe("見出しのリンク先の名前 (GitHub と同じ)", () => {
+  it("小文字にし、記号を消して、空白を - にする。日本語はそのまま", () => {
+    const slug = createSlugger()
+    expect(slug("1. 背景")).toBe("1-背景")
+    expect(slug("Hello, World!")).toBe("hello-world")
+    expect(slug("API の `raw` (GET)")).toBe("api-の-raw-get")
+    expect(slug("snake_case と kebab-case")).toBe("snake_case-と-kebab-case")
+    expect(slug("ファイル (エクスプローラ・SPEC・表示)")).toBe("ファイル-エクスプローラspec表示")
+  })
+  it("同じ名前は 2 つ目から -1, -2 を付ける", () => {
+    const slug = createSlugger()
+    expect([slug("概要"), slug("概要"), slug("概要"), slug("概要-1")]).toEqual(["概要", "概要-1", "概要-2", "概要-1-1"])
   })
 })
