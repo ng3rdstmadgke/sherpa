@@ -1,4 +1,4 @@
-<h1>
+<h1 align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/logo-wordmark-dark.svg">
     <img src="docs/images/logo-wordmark.svg" alt="Sherpa" width="270">
