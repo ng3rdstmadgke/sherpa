@@ -86,7 +86,7 @@ export function ProjectWorkspace({
   const { view, layouts } = state
   const setView = useCallback((v: View) => setState((s) => ({ ...s, view: v })), [setState])
   const setCompare = (c: CompareState) => setState((s) => ({ ...s, compare: c }))
-  // ファイルメニューの検索欄のタブと、フォーカスの合図 (Ctrl+B: Contents、Ctrl+P: File)
+  // ファイルメニューの検索欄のタブと、フォーカスの合図 (Ctrl+G: Contents、Ctrl+P: File)
   const [searchMode, setSearchMode] = useState<SearchMode>("content")
   const [focusSearch, setFocusSearch] = useState(0)
   // グループ内検索 (Ctrl+F)。開いている検索バーは表示中のメニューで 1 つだけ
@@ -193,7 +193,8 @@ function WorkspaceBody(props: BodyProps) {
       const mod = e.ctrlKey || e.metaKey
       if (!mod) return
       const k = e.key.toLowerCase()
-      if ((k === "p" || k === "b") && !e.shiftKey) {
+      // Ctrl+G はブラウザの「次を検索」より優先する (Shift 付きは Git メニュー)
+      if ((k === "p" || k === "g") && !e.shiftKey) {
         e.preventDefault()
         setView("files")
         setSearchMode(k === "p" ? "name" : "content")
@@ -398,7 +399,7 @@ function EmptyState({ view }: { view: View }) {
         <>
           <p>ファイルを選択してください</p>
           <p className="flex items-center gap-2">
-            <Kbd>Ctrl+P</Kbd> ファイル名で探す <Kbd>Ctrl+B</Kbd> 内容で探す
+            <Kbd>Ctrl+P</Kbd> ファイル名で探す <Kbd>Ctrl+G</Kbd> 内容で探す
           </p>
         </>
       )}

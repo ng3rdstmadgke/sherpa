@@ -205,10 +205,10 @@ export function FilesPanel({
   specPatterns: string[]
   onOpen: (tab: DocTab) => void
   activePath?: string
-  // 検索欄のタブ (Contents / File)。Ctrl+B / Ctrl+P で外から切り替えるので、呼び出し元で持つ
+  // 検索欄のタブ (Contents / File)。Ctrl+G / Ctrl+P で外から切り替えるので、呼び出し元で持つ
   searchMode: SearchMode
   onSearchModeChange: (m: SearchMode) => void
-  // Ctrl+B / Ctrl+P が押されるたびに変わる値。検索欄にフォーカスする
+  // Ctrl+G / Ctrl+P が押されるたびに変わる値。検索欄にフォーカスする
   focusSearchSignal: number
   // 比較対象との差分があるファイルと、その状態 (M / A など)
   diffStatus: Map<string, ChangeStatus>
@@ -265,7 +265,7 @@ export function FilesPanel({
       <div className="shrink-0 border-b">
         <Tabs value={searchMode} onValueChange={(v) => onSearchModeChange(v as SearchMode)}>
           <TabsList variant="line" className="h-9 w-full justify-start border-b px-2">
-            <TabsTrigger value="content" className="flex-none px-3 text-xs" title="内容で検索 (Ctrl+B)">
+            <TabsTrigger value="content" className="flex-none px-3 text-xs" title="内容で検索 (Ctrl+G)">
               Contents
             </TabsTrigger>
             <TabsTrigger value="name" className="flex-none px-3 text-xs" title="ファイル名で検索 (Ctrl+P)">
@@ -281,7 +281,7 @@ export function FilesPanel({
               value={form.q}
               onChange={(e) => setForm({ q: e.target.value })}
               onKeyDown={(e) => e.key === "Escape" && setForm({ q: "" })}
-              placeholder={searchMode === "content" ? "内容で絞り込む (Ctrl+B)" : "ファイル名で絞り込む (Ctrl+P)"}
+              placeholder={searchMode === "content" ? "内容で絞り込む (Ctrl+G)" : "ファイル名で絞り込む (Ctrl+P)"}
               aria-invalid={!!error}
               className="h-8 pr-28 pl-7 text-sm"
             />
