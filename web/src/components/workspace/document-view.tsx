@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { cn } from "cn"
 import { AlertTriangle, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Copy } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,7 @@ import { formatSize, relTime } from "@/lib/format"
 import { CodeViewer, langFromPath } from "@/components/viewers/code-viewer"
 import { MarkdownDiffViewer, MarkdownViewer } from "@/components/viewers/markdown-viewer"
 import { DiffViewer } from "@/components/viewers/diff-viewer"
+import { ZoomView } from "@/components/viewers/zoom-dialog"
 import { diffSides, withinHighlightLimit } from "@/lib/diff"
 import { DiffStat, dirname, FileIcon, resolveRelative, statusColor } from "./common"
 import { baseLabel, type DiffBase, type DocTab, type DocView } from "./editor-layout"
@@ -115,13 +116,49 @@ function useImageResolver(path: string) {
   }
 }
 
+// 透明な部分が分かるよう、画像の下に市松模様を敷く
+const CHECKER = "bg-[repeating-conic-gradient(#8881_0_25%,transparent_0_50%)] bg-[length:16px_16px]"
+
 function ImageView({ src, caption }: { src: string; caption?: string }) {
   return (
     <div className="flex flex-col items-center gap-2 p-6">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt={caption ?? ""} className="max-w-full rounded border bg-[repeating-conic-gradient(#8881_0_25%,transparent_0_50%)] bg-[length:16px_16px]" />
+      <img src={src} alt={caption ?? ""} className={cn("max-w-full rounded border", CHECKER)} />
       {caption && <p className="text-xs text-muted-foreground">{caption}</p>}
     </div>
+  )
+}
+
+// 画像のファイル。枠に収まる大きさ (元より大きくはしない) で開き、拡大・縮小できる。
+// 元の大きさが分からない画像 (読めない・大きさのない SVG など) は、拡大・縮小せずにそのまま出す
+function ImageFileView({ src, name, size }: { src: string; name: string; size: number }) {
+  const [natural, setNatural] = useState<{ width: number; height: number } | "error" | null>(null)
+  useEffect(() => {
+    const img = new Image()
+    img.onload = () => setNatural(img.naturalWidth > 0 && img.naturalHeight > 0 ? { width: img.naturalWidth, height: img.naturalHeight } : "error")
+    img.onerror = () => setNatural("error")
+    img.src = src
+    return () => {
+      img.onload = img.onerror = null
+    }
+  }, [src])
+  if (natural === null) return <Notice>読み込み中…</Notice>
+  if (natural === "error") return <ImageView src={src} caption={`${name} (${formatSize(size)})`} />
+  return (
+    <ZoomView
+      className="h-full"
+      maxFit={1}
+      // ファイル名はパンくずリストにあるので、大きさだけを出す
+      header={
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {natural.width} × {natural.height} · {formatSize(size)}
+        </span>
+      }
+      {...natural}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={name} draggable={false} className={cn("block size-full", CHECKER)} />
+    </ZoomView>
   )
 }
 
@@ -145,7 +182,7 @@ function FileContentView(props: {
   resolveImage: (src: string) => string
 }) {
   const { content: c, path, line, mdMode, actions } = props
-  if (c.kind === "image") return <ImageView src={props.imageUrl} caption={`${path.split("/").pop()} (${formatSize(c.size)})`} />
+  if (c.kind === "image") return <ImageFileView key={props.imageUrl} src={props.imageUrl} name={path.split("/").pop() ?? path} size={c.size} />
   if (c.kind === "binary") return <Notice>バイナリのため表示しません ({formatSize(c.size)})</Notice>
   if (c.kind === "too-large") return <Notice>大きすぎるため表示しません ({formatSize(c.size)})</Notice>
   if (c.kind === "symlink")

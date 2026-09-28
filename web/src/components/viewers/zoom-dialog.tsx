@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, type ReactNode } from "react"
+import { cn } from "cn"
 import { MaximizeIcon, ZoomInIcon, ZoomOutIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
@@ -9,12 +10,15 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 const MIN_SCALE = 0.05
 const MAX_SCALE = 20
 const STEP = 1.25
+// この倍率以上では、画像を補間せずに画素のまま拡大する (小さなアイコンなどをぼかさないため)
+const PIXELATED_SCALE = 3
 
 type View = { x: number; y: number; scale: number }
 
-// 枠に収まる大きさで中央に置く
-function fitView(el: HTMLElement, width: number, height: number): View {
-  const scale = Math.min(Math.max(Math.min((el.clientWidth * 0.95) / width, (el.clientHeight * 0.95) / height), MIN_SCALE), MAX_SCALE)
+// 枠に収まる大きさで中央に置く。maxFit より大きくはしない
+function fitView(el: HTMLElement, width: number, height: number, maxFit: number): View {
+  const fit = Math.min((el.clientWidth * 0.95) / width, (el.clientHeight * 0.95) / height, maxFit)
+  const scale = Math.min(Math.max(fit, MIN_SCALE), MAX_SCALE)
   return { scale, x: (el.clientWidth - width * scale) / 2, y: (el.clientHeight - height * scale) / 2 }
 }
 
@@ -25,28 +29,51 @@ function zoomAt(v: View, factor: number, px: number, py: number): View {
   return { scale, x: px - (px - v.x) * k, y: py - (py - v.y) * k }
 }
 
-// モーダルの中身。ホイールで拡大・縮小、ドラッグで移動、ダブルクリックで全体を表示
-function ZoomView({ title, width, height, children }: { title: string; width: number; height: number; children: ReactNode }) {
+// 拡大・縮小できる表示。ホイールで拡大・縮小、ドラッグで移動、ダブルクリックで全体を表示。
+// width / height は中身の元の大きさ (px)。header は上の帯の左に出すもの。
+// maxFit: 全体を表示するときの倍率の上限 (1 なら小さなものを引き伸ばさない)。
+// modal: モーダルの中に置く。キー (+ / - / 0 / 1) をページ全体で受け、右上に閉じるボタンの場所を空ける。
+// モーダルでないときは、表示にフォーカスがあるときだけキーを受ける
+export function ZoomView(props: {
+  header: ReactNode
+  width: number
+  height: number
+  children: ReactNode
+  maxFit?: number
+  modal?: boolean
+  className?: string
+}) {
+  const { width, height, maxFit = Infinity, modal = false } = props
   const ref = useRef<HTMLDivElement>(null)
   const drag = useRef<{ px: number; py: number; x: number; y: number } | null>(null)
+  // 全体を表示したままか (動かしていなければ、枠の大きさが変わったときに合わせ直す)
+  const fitted = useRef(true)
   const [view, setView] = useState<View | null>(null)
 
   const fit = () => {
-    if (ref.current) setView(fitView(ref.current, width, height))
+    if (!ref.current) return
+    fitted.current = true
+    setView(fitView(ref.current, width, height, maxFit))
   }
   // 枠の中央を中心に拡大・縮小する
   const zoomCenter = (factor: (v: View) => number) => {
     const el = ref.current
-    if (el) setView((v) => v && zoomAt(v, factor(v), el.clientWidth / 2, el.clientHeight / 2))
+    if (!el) return
+    fitted.current = false
+    setView((v) => v && zoomAt(v, factor(v), el.clientWidth / 2, el.clientHeight / 2))
   }
 
-  // 開いたら全体を表示する (枠の大きさが決まってから測る)
+  // 開いたときと、枠の大きさが変わったときに全体を表示する (動かしたあとは合わせない)
   useEffect(() => {
-    const id = requestAnimationFrame(() => {
-      if (ref.current) setView(fitView(ref.current, width, height))
+    const el = ref.current
+    if (!el) return
+    fitted.current = true
+    const observer = new ResizeObserver(() => {
+      if (fitted.current) setView(fitView(el, width, height, maxFit))
     })
-    return () => cancelAnimationFrame(id)
-  }, [width, height])
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [width, height, maxFit])
 
   // ホイールはページのスクロールやブラウザの拡大を止めたいので、passive でない listener で受ける
   useEffect(() => {
@@ -54,6 +81,7 @@ function ZoomView({ title, width, height, children }: { title: string; width: nu
     if (!el) return
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
+      fitted.current = false
       const rect = el.getBoundingClientRect()
       const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY
       setView((v) => v && zoomAt(v, Math.exp(-dy * 0.002), e.clientX - rect.left, e.clientY - rect.top))
@@ -63,28 +91,30 @@ function ZoomView({ title, width, height, children }: { title: string; width: nu
   }, [])
 
   // + / - で拡大・縮小、0 で全体、1 で等倍
+  const onKey = (e: KeyboardEvent | React.KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return
+    if (e.key === "+" || e.key === "=") zoomCenter(() => STEP)
+    else if (e.key === "-") zoomCenter(() => 1 / STEP)
+    else if (e.key === "1") zoomCenter((v) => 1 / v.scale)
+    else if (e.key === "0") fit()
+    else return
+    e.preventDefault()
+  }
+  const onKeyRef = useRef(onKey)
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey || e.altKey) return
-      const el = ref.current
-      if (!el) return
-      const zoom = (factor: (v: View) => number) =>
-        setView((v) => v && zoomAt(v, factor(v), el.clientWidth / 2, el.clientHeight / 2))
-      if (e.key === "+" || e.key === "=") zoom(() => STEP)
-      else if (e.key === "-") zoom(() => 1 / STEP)
-      else if (e.key === "1") zoom((v) => 1 / v.scale)
-      else if (e.key === "0") setView(fitView(el, width, height))
-      else return
-      e.preventDefault()
-    }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [width, height])
+    onKeyRef.current = onKey
+  })
+  useEffect(() => {
+    if (!modal) return
+    const listener = (e: KeyboardEvent) => onKeyRef.current(e)
+    window.addEventListener("keydown", listener)
+    return () => window.removeEventListener("keydown", listener)
+  }, [modal])
 
   return (
-    <>
-      <div className="flex items-center gap-1 border-b py-1.5 pr-12 pl-4">
-        <DialogTitle className="mr-auto min-w-0 truncate text-sm">{title}</DialogTitle>
+    <div className={cn("flex min-h-0 flex-1 flex-col", props.className)} onKeyDown={modal ? undefined : onKey}>
+      <div className={cn("flex items-center gap-1 border-b py-1.5 pl-4", modal ? "pr-12" : "pr-3")}>
+        <div className="mr-auto min-w-0 truncate text-sm">{props.header}</div>
         <Button variant="ghost" size="icon-sm" title="縮小 (-)" onClick={() => zoomCenter(() => 1 / STEP)}>
           <ZoomOutIcon />
         </Button>
@@ -101,7 +131,9 @@ function ZoomView({ title, width, height, children }: { title: string; width: nu
       </div>
       <div
         ref={ref}
-        className="relative min-h-0 flex-1 cursor-grab touch-none overflow-hidden select-none active:cursor-grabbing"
+        // モーダルでないときは、クリックしたあとにキーで操作できるよう、フォーカスを受けられるようにする
+        tabIndex={modal ? undefined : 0}
+        className="relative min-h-0 flex-1 cursor-grab touch-none overflow-hidden outline-none select-none active:cursor-grabbing"
         onPointerDown={(e) => {
           if (e.button !== 0 || !view) return
           e.currentTarget.setPointerCapture(e.pointerId)
@@ -109,14 +141,17 @@ function ZoomView({ title, width, height, children }: { title: string; width: nu
         }}
         onPointerMove={(e) => {
           const d = drag.current
-          if (d) setView((v) => v && { ...v, x: d.x + e.clientX - d.px, y: d.y + e.clientY - d.py })
+          if (!d) return
+          fitted.current = false
+          setView((v) => v && { ...v, x: d.x + e.clientX - d.px, y: d.y + e.clientY - d.py })
         }}
         onPointerUp={() => (drag.current = null)}
         onPointerCancel={() => (drag.current = null)}
         onDoubleClick={fit}
       >
         <div
-          className="absolute top-0 left-0 origin-top-left"
+          data-pixelated={view && view.scale >= PIXELATED_SCALE ? "" : undefined}
+          className="absolute top-0 left-0 origin-top-left data-pixelated:[&_img]:[image-rendering:pixelated]"
           style={{
             width,
             height,
@@ -124,10 +159,10 @@ function ZoomView({ title, width, height, children }: { title: string; width: nu
             transform: view ? `translate(${view.x}px, ${view.y}px) scale(${view.scale})` : undefined,
           }}
         >
-          {children}
+          {props.children}
         </div>
       </div>
-    </>
+    </div>
   )
 }
 
@@ -150,7 +185,7 @@ export function ZoomDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[90vh] w-[95vw] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none">
-        <ZoomView title={title} width={width} height={height}>
+        <ZoomView header={<DialogTitle className="truncate text-sm">{title}</DialogTitle>} width={width} height={height} modal>
           {children}
         </ZoomView>
       </DialogContent>
