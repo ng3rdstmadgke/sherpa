@@ -149,6 +149,11 @@ export function closeTab(layout: Layout, groupId: string, key: string): Layout {
   return finalize(root, layout.activeGroupId)
 }
 
+// すべてのタブを閉じ、空のグループ 1 つに戻す (分割もなくす)
+export function closeAllTabs(): Layout {
+  return createLayout()
+}
+
 // タブをグループへ移動する。zone が端なら、そのグループを分割して新しいグループを作る
 export function moveTab(layout: Layout, tab: DocTab, fromGroupId: string | null, toGroupId: string, zone: DropZone): Layout {
   const key = tabKey(tab)

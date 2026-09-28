@@ -22,19 +22,20 @@ import { onWatchEvent, useWatchStatus } from "@/lib/events"
 import { relTime } from "@/lib/format"
 import { usePersistentState } from "@/lib/persist"
 import { parseSpecPaths } from "@/lib/spec"
-import { createLayout, findGroup, groups, openTab, tabKey, type DiffBase, type DocTab, type Layout } from "./editor-layout"
+import { closeAllTabs, createLayout, findGroup, groups, openTab, tabKey, type DiffBase, type DocTab, type Layout } from "./editor-layout"
 import { EditorArea, type FindState } from "./editor-area"
 import { FilesPanel, type SearchMode } from "./side-panels"
 import { GitPanel } from "./git-panel"
 import { WorktreeInfo } from "./worktree-info"
 import { SpecPathsInput } from "./spec-paths-input"
 import { ComparePicker, type CompareState } from "./compare-picker"
+import { CommandPalette, useCommandKeys, type AppCommand } from "./command-palette"
 
 type View = "files" | "git"
 
 const VIEWS = [
-  { id: "files", icon: Files, label: "ファイル (Ctrl+Shift+E)" },
-  { id: "git", icon: GitCompare, label: "Git 差分 (Ctrl+Shift+G)" },
+  { id: "files", icon: Files, name: "ファイル", label: "ファイル (Ctrl+Shift+E)" },
+  { id: "git", icon: GitCompare, name: "Git 差分", label: "Git 差分 (Ctrl+Shift+G)" },
 ] as const
 
 export function worktreeLabel(project: Project, worktreeId: string) {
@@ -187,22 +188,28 @@ function WorkspaceBody(props: BodyProps) {
     hasDiff: (path: string) => diffStatus.has(path),
   })
 
-  useEffect(() => {
-    if (!isActive) return
-    const onKey = (e: KeyboardEvent) => {
-      const mod = e.ctrlKey || e.metaKey
-      if (!mod) return
-      const k = e.key.toLowerCase()
-      // Ctrl+G はブラウザの「次を検索」より優先する (Shift 付きは Git メニュー)
-      if ((k === "p" || k === "g") && !e.shiftKey) {
-        e.preventDefault()
-        setView("files")
-        setSearchMode(k === "p" ? "name" : "content")
-        setFocusSearch((n) => n + 1)
-      } else if (k === "f" && !e.shiftKey) {
-        // 検索バーの入力欄でもう一度押したときは、ブラウザ標準の検索に任せる
-        if ((document.activeElement as HTMLElement | null)?.dataset.findInput !== undefined) return
-        e.preventDefault()
+  // すべてのタブを閉じる (そのメニューのエディタ領域のタブを閉じ、分割もなくす)
+  const closeAll = (v: View) => {
+    updateView(v)(() => closeAllTabs())
+    setFind((f) => (f?.view === v ? null : f))
+  }
+  const searchFiles = (mode: SearchMode) => {
+    setView("files")
+    setSearchMode(mode)
+    setFocusSearch((n) => n + 1)
+  }
+  // コマンドの一覧。ショートカットとコマンドパレットの両方がここから引く (docs/architecture/ui.md §9)
+  const commands: AppCommand[] = [
+    { id: "search.name", label: "ファイル名で探す", shortcut: { key: "p" }, run: () => searchFiles("name") },
+    // Ctrl+G はブラウザの「次を検索」より優先する (Shift 付きは Git 差分のメニュー)
+    { id: "search.content", label: "内容で探す", shortcut: { key: "g" }, run: () => searchFiles("content") },
+    {
+      id: "find",
+      label: "グループ内を検索",
+      shortcut: { key: "f" },
+      // 検索バーの入力欄でもう一度押したときは、ブラウザ標準の検索に任せる
+      enabled: () => (document.activeElement as HTMLElement | null)?.dataset.findInput === undefined,
+      run: () => {
         const { view, layouts } = latest.current
         // 文字列を選択していれば、それを検索語にする
         const selected = window.getSelection()?.toString().trim() ?? ""
@@ -212,17 +219,19 @@ function WorkspaceBody(props: BodyProps) {
           query: selected && !selected.includes("\n") ? selected : (prev?.query ?? ""),
           nonce: (prev?.nonce ?? 0) + 1,
         }))
-      } else if (e.shiftKey && k === "e") {
-        e.preventDefault()
-        setView("files")
-      } else if (e.shiftKey && k === "g") {
-        e.preventDefault()
-        setView("git")
-      }
-    }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [isActive, setView, latest, setFind, setFocusSearch, setSearchMode])
+      },
+    },
+    { id: "view.files", label: "ファイルのメニューを開く", shortcut: { key: "e", shift: true }, run: () => setView("files") },
+    { id: "view.git", label: "Git 差分のメニューを開く", shortcut: { key: "g", shift: true }, run: () => setView("git") },
+    {
+      id: "tabs.closeAll",
+      label: `すべてのタブを閉じる (${VIEWS.find((x) => x.id === view)?.name})`,
+      aliases: [":qa", ":qa!", "qa", "qa!", ":qall", "close all"],
+      run: () => closeAll(latest.current.view),
+    },
+  ]
+  const [palette, setPalette] = useState({ open: false, search: "" })
+  useCommandKeys(commands, isActive, (search) => setPalette({ open: true, search }))
 
   const filesLayout = layouts.files
   const filesActive = findGroup(filesLayout.root, filesLayout.activeGroupId)
@@ -342,6 +351,7 @@ function WorkspaceBody(props: BodyProps) {
                   update={updateView(id)}
                   actionsFor={actionsFor(id)}
                   empty={<EmptyState view={id} />}
+                  onCloseAll={() => closeAll(id)}
                   find={isActive && find?.view === id ? find : null}
                   onFindChange={(f) => setFind(f && { ...f, view: id })}
                 />
@@ -350,6 +360,14 @@ function WorkspaceBody(props: BodyProps) {
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
+
+      <CommandPalette
+        commands={commands}
+        open={palette.open}
+        search={palette.search}
+        onSearchChange={(search) => setPalette((p) => ({ ...p, search }))}
+        onOpenChange={(open) => setPalette((p) => ({ ...p, open }))}
+      />
 
       {reloaded && isActive && (
         <div className="absolute right-4 bottom-4 z-30 flex items-center gap-2 rounded-md border bg-popover px-3 py-2 text-sm shadow-lg">
@@ -404,6 +422,9 @@ function EmptyState({ view }: { view: View }) {
         </>
       )}
       {view === "git" && <p>左の一覧から変更ファイルかコミットを選択してください</p>}
+      <p className="flex items-center gap-2">
+        <Kbd>Ctrl+Shift+P</Kbd> コマンド (<Kbd>:qa</Kbd> ですべてのタブを閉じる)
+      </p>
       <p className="text-xs">タブやファイルをここの端へドラッグすると画面を分割できます</p>
     </div>
   )

@@ -7,7 +7,7 @@ import { checkRequest, hostname, isPreviewRequest } from "@/lib/request-guard"
 import { DEFAULT_EXCLUDES, parseExcludeLines } from "@/lib/excludes"
 import { buildMarkdownDiff, diffSides, withinHighlightLimit, type MdNode } from "@/lib/diff"
 import type { DiffLine } from "@/lib/types"
-import { createLayout, findGroup, openTab } from "@/components/workspace/editor-layout"
+import { closeAllTabs, createLayout, findGroup, groups, moveTab, openTab } from "@/components/workspace/editor-layout"
 import { unified } from "unified"
 import remarkParse from "remark-parse"
 import remarkGfm from "remark-gfm"
@@ -232,6 +232,19 @@ describe("Markdown のプレビューの差分 (Split)", () => {
   it("左 (before) は削除の印のもの、右 (after) は追加の印のものだけを残す", () => {
     expect(outline(markdownDiff(spec, "before").children!)).toEqual(["heading:T", "paragraph[md-diff-del]:東京のみ。", "paragraph:本文"])
     expect(outline(markdownDiff(spec, "after").children!)).toEqual(["heading:T", "paragraph[md-diff-add]:東京と韓国。", "paragraph[md-diff-add]:追加", "paragraph:本文"])
+  })
+})
+
+describe("すべてのタブを閉じる", () => {
+  it("分割したグループもなくし、空のグループ 1 つに戻す", () => {
+    let l = openTab(createLayout(), { kind: "file", path: "a.md" })
+    l = openTab(l, { kind: "file", path: "b.md" })
+    l = moveTab(l, { kind: "file", path: "b.md" }, l.activeGroupId, l.activeGroupId, "right")
+    expect(groups(l.root)).toHaveLength(2)
+    const closed = closeAllTabs()
+    expect(groups(closed.root)).toHaveLength(1)
+    expect(groups(closed.root)[0].tabs).toEqual([])
+    expect(closed.activeGroupId).toBe(groups(closed.root)[0].id)
   })
 })
 

@@ -2,7 +2,7 @@
 
 import { Fragment, useRef, useState } from "react"
 import { cn } from "cn"
-import { Columns2, GitCommitHorizontal, GitCompare, Rows2, X } from "lucide-react"
+import { Columns2, CopyX, GitCommitHorizontal, GitCompare, Rows2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
@@ -36,6 +36,8 @@ type Ctx = {
   empty: React.ReactNode
   find: FindState | null
   onFindChange: (f: FindState | null) => void
+  // すべてのタブを閉じる (分割もなくす)
+  onCloseAll: () => void
 }
 
 export function EditorArea(props: Ctx) {
@@ -95,6 +97,7 @@ function GroupView({ group, ctx }: { group: Group; ctx: Ctx }) {
   const find = ctx.find?.groupId === group.id ? ctx.find : null
   const isActiveGroup = layout.activeGroupId === group.id
   const isOnlyGroup = groups(layout.root).length === 1
+  const hasTabs = groups(layout.root).some((g) => g.tabs.length > 0)
   const active = group.tabs.find((t) => tabKey(t) === group.activeKey)
 
   const accepts = (e: React.DragEvent) => e.dataTransfer.types.includes(TAB_MIME)
@@ -142,6 +145,11 @@ function GroupView({ group, ctx }: { group: Group; ctx: Ctx }) {
                 <Rows2 className="size-3.5" />
               </IconButton>
             </>
+          )}
+          {hasTabs && (
+            <IconButton label="すべてのタブを閉じる (:qa)" onClick={ctx.onCloseAll}>
+              <CopyX className="size-3.5" />
+            </IconButton>
           )}
           {!isOnlyGroup && (
             <IconButton
