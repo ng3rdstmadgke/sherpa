@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="128" height="128" fill="none">
+  <!-- sherpa のロゴ (ダークのテーマ用。色は slate-300)。形は web/src/components/logo.tsx と同じ -->
+  <mask id="m">
+    <rect width="32" height="32" fill="#fff"/>
+    <g stroke="#000" stroke-width="2.2" stroke-linecap="round">
+      <path d="M12.5 29V14"/>
+      <path d="M19 29c0-5-6.5-5-6.5-9.5"/>
+    </g>
+    <circle cx="12.5" cy="12.2" r="2.4" fill="#000"/>
+    <circle cx="19" cy="24.5" r="1.9" fill="#000"/>
+  </mask>
+  <path d="M1.5 27.5 12.5 5l5.2 9.6 4.3-5.6 8.5 18.5Z" fill="#cad5e2" stroke="#cad5e2" stroke-width="2" stroke-linejoin="round" mask="url(#m)"/>
+</svg>

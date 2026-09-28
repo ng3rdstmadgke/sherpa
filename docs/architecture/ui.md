@@ -15,7 +15,10 @@
 ## 1. 一番上のタブ (プロジェクトタブ)
 
 - 左端に、ロゴと「sherpa」の名前を置く
-  - ロゴは山並みと、麓から頂上へ登る git の枝 (白抜き)。`web/src/components/logo.tsx` (色は `currentColor`) と、ブラウザのタブのアイコン `web/src/app/icon.svg` が同じ形
+  - ロゴは山並みと、麓から頂上へ登る git の枝 (白抜き)。次のファイルが同じ形で、形を変えたらすべて直す
+    - `web/src/components/logo.tsx` (画面のヘッダー。色は `currentColor`) と、ブラウザのタブのアイコン `web/src/app/icon.svg`
+    - `docs/images/logo.svg` / `logo-dark.svg`: アイコンだけ (ライト / ダークのテーマ用)
+    - `docs/images/logo-wordmark.svg` / `logo-wordmark-dark.svg`: アイコンの右に「sherpa」の文字を並べたもの。文字は Geist の semibold (字間は `tracking-tight` と同じ -0.025em) を図形にしたもの (見る環境のフォントに左右されないため)。README の見出しに使い、`<picture>` で GitHub のテーマに合わせて切り替える
   - 色はプライマリカラー (`--primary`) の岩の灰青。ライトは `slate-700`、ダークは `slate-300`。選んでいるボタン (パスのバーの切り替えなど) や、既定のボタンもこの色。`icon.svg` は OS のライト / ダーク (`prefers-color-scheme`) で色を切り替える
 - 1 つのタブが「プロジェクト + worktree」に対応する。同じプロジェクトを複数のタブで開ける
 - ラベルは、main worktree なら `プロジェクト名`、それ以外なら `プロジェクト名 / worktree 名`

@@ -3,7 +3,7 @@
 import { useId } from "react"
 
 // sherpa のロゴ (山並みと、麓から頂上へ登る git の枝)。色は currentColor。
-// 枝は白抜き (mask) なので、下の背景の色が見える。favicon は同じ形を app/icon.svg に置く
+// 枝は白抜き (mask) なので、下の背景の色が見える。同じ形を app/icon.svg (favicon) と docs/images/logo*.svg (README) にも置く
 export function Logo({ className }: { className?: string }) {
   const id = `logo-${useId().replace(/:/g, "")}`
   return (

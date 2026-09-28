@@ -1,4 +1,9 @@
-# Sherpa
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/logo-wordmark-dark.svg">
+    <img src="docs/images/logo-wordmark.svg" alt="Sherpa" width="270">
+  </picture>
+</h1>
 
 ## Overview
 
