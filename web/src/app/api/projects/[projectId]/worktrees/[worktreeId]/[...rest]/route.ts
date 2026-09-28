@@ -1,8 +1,9 @@
 import { ApiError, notFound, readJson, route } from "@/server/errors"
-import { listChildren, listDir, listSpec, listTree, rawFile, readContent } from "@/server/files"
+import { listChildren, listDir, listSpec, listTree, previewFile, rawFile, readContent } from "@/server/files"
 import { changes, commitDetail, compare, fileDiff, listBranches } from "@/server/git"
 import { checkRel } from "@/server/paths"
 import { getCtx, setSpecPaths } from "@/server/projects"
+import { checkPreviewToken, previewToken } from "@/server/preview"
 import { searchContent, searchNames, type SearchParams } from "@/server/search"
 import { restartProject } from "@/server/watch"
 
@@ -58,8 +59,15 @@ export const GET = route<Ctx>(async (req, { params }) => {
       return searchContent(ctx, searchParams(q))
     case "search/files":
       return searchNames(ctx, searchParams(q))
+    case "preview-token":
+      return { token: previewToken(projectId, worktreeId) }
   }
   if (rest[0] === "commits" && rest.length === 2) return commitDetail(ctx, rest[1])
+  // HTML のプレビュー (preview/<合言葉>/<path>)。パスは URL のパスで受ける (相対パスの CSS や画像を同じ形で読むため)
+  if (rest[0] === "preview" && rest.length > 2) {
+    checkPreviewToken(projectId, worktreeId, rest[1])
+    return previewFile(ctx, rest.slice(2).join("/"))
+  }
   throw notFound("API が見つかりません")
 })
 

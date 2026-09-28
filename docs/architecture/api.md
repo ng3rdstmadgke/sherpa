@@ -32,6 +32,8 @@
 | `PUT …/wt/spec-paths` | `{ input: string }` | `{}` |
 | `GET …/wt/file?path=` | | `FileContent` |
 | `GET …/wt/raw?path=&rev=` | `rev` は省略 (作業ツリー) かコミットのハッシュ | ファイルのバイト列 |
+| `GET …/wt/preview-token` | | `{ token }` (HTML のプレビューの合言葉。[security.md](security.md) §6) |
+| `GET …/wt/preview/<token>/<path>` | パスは URL のパス (ページの中の相対パスを同じ形で解決するため)。合言葉が違えば 403 `FORBIDDEN` | ファイルのバイト列 (HTML のプレビュー) |
 | `GET …/wt/changes` | | `Change[]` |
 | `GET …/wt/branches` | | `Branch[]` |
 | `GET …/wt/compare?branch=&includeUncommitted=0\|1` | | `CompareResult` |

@@ -192,6 +192,20 @@ describe("ファイルの内容", () => {
     expect(await old.text()).toBe("old\n")
     expect(await code(S.files.rawFile(c, "README.md", "HEAD"))).toBe("INVALID_REQUEST:400")
   })
+
+  it("preview: 拡張子の型と、スクリプトだけ許す sandbox の CSP を付ける。外を指すリンクは読まない", async () => {
+    const c = await ctx()
+    const img = await S.files.previewFile(c, "img.png")
+    expect(img.headers.get("content-type")).toBe("image/png")
+    expect(img.headers.get("content-security-policy")).toBe("sandbox allow-scripts")
+    expect(img.headers.get("x-content-type-options")).toBe("nosniff")
+    const txt = await S.files.previewFile(c, "notes.txt")
+    expect(txt.headers.get("content-type")).toBe("text/plain; charset=utf-8")
+    expect((await S.files.previewFile(c, "README.md")).headers.get("content-type")).toBe("application/octet-stream")
+    expect(await code(S.files.previewFile(c, "link-out"))).toBe("OUTSIDE:403")
+    expect(await code(S.files.previewFile(c, "src"))).toBe("NOT_FOUND:404")
+    expect(await code(S.files.previewFile(c, "../proj/img.png"))).toBe("INVALID_PATH:400")
+  })
 })
 
 describe("git", () => {

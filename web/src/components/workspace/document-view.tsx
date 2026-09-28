@@ -6,7 +6,7 @@ import { AlertTriangle, Check, ChevronDown, ChevronRight, ChevronsDownUp, Chevro
 import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type { Change, DiffLine, DiffResult, DiffSide, FileContent } from "@/lib/types"
-import { errorMessage, rawUrl, useCommit, useDiff, useFile, useWt } from "@/lib/api"
+import { errorMessage, previewUrl, rawUrl, useCommit, useDiff, useFile, usePreviewToken, useWt } from "@/lib/api"
 import { formatSize, relTime } from "@/lib/format"
 import { CodeViewer, langFromPath } from "@/components/viewers/code-viewer"
 import { MarkdownDiffViewer, MarkdownViewer } from "@/components/viewers/markdown-viewer"
@@ -165,11 +165,25 @@ function ImageFileView({ src, name, size }: { src: string; name: string; size: n
 // ファイル全体の表示 (Markdown はプレビューかソース、それ以外はコード。画像は画像、バイナリと大きすぎるものは案内)
 function FileBody({ path, line, mdMode, actions }: { path: string; line?: number; mdMode: MdMode; actions: DocumentActions }) {
   const wt = useWt()
-  const { data, error, isPending } = useFile(path)
+  const { data, error, isPending, dataUpdatedAt } = useFile(path)
   const resolveImage = useImageResolver(path)
   if (isPending) return <Notice>読み込み中…</Notice>
   if (error) return <Notice error>{errorMessage(error)}</Notice>
+  // HTML のプレビューは、ファイルを読み直したら (変更を検知したら) 開き直す
+  if (isHtml(path) && mdMode === "preview" && data.kind === "text") return <HtmlPreview key={dataUpdatedAt} path={path} />
   return <FileContentView content={data} path={path} line={line} mdMode={mdMode} actions={actions} imageUrl={rawUrl(wt, path)} resolveImage={resolveImage} />
+}
+
+const isHtml = (path: string) => /\.html?$/i.test(path)
+
+// HTML のプレビュー。sherpa と別の origin として動くよう、sandbox の iframe で開く (スクリプトは動く。docs/architecture/security.md §6)。
+// ページは白地を前提にしていることが多いので、ダークのときも白地にする
+function HtmlPreview({ path }: { path: string }) {
+  const wt = useWt()
+  const { data, error } = usePreviewToken()
+  if (error) return <Notice error>{errorMessage(error)}</Notice>
+  if (!data) return <Notice>読み込み中…</Notice>
+  return <iframe src={previewUrl(wt, data.token, path)} sandbox="allow-scripts" title="HTML のプレビュー" className="block size-full border-0 bg-white" />
 }
 
 function FileContentView(props: {
@@ -282,17 +296,19 @@ type FileTab = Extract<DocTab, { kind: "file" }>
 type DiffTab = Extract<DocTab, { kind: "diff" }>
 
 // ファイルタブと差分タブの本文。パスのバーの右に [プレビュー|ソース] [Unified|Split] [差分|全体] を並べる。
-// プレビュー / ソースは Markdown だけ、Unified / Split は差分のときだけ、差分 / 全体は差分があるときだけ出す。
+// プレビュー / ソースは Markdown (と、全体のときの HTML) だけ、Unified / Split は差分のときだけ、差分 / 全体は差分があるときだけ出す。
 // diff: 差分の取り方 (ファイルタブは比較対象との差分をファイル全体に重ねる。差分がなければ undefined)
 function DocumentPane(props: { tab: FileTab | DiffTab; actions: DocumentActions; diff?: { base: DiffBase; oldPath?: string; expandAll?: boolean } }) {
   const { tab, actions, diff } = props
   const { path } = tab
   const isMd = path.endsWith(".md")
+  // HTML は「全体」のときだけプレビューできる (プレビューの差分は Markdown だけ)
+  const canPreview = isMd || isHtml(path)
   const line = tab.kind === "file" ? tab.line : undefined
   const display: Display = diff ? (tab.display ?? (tab.kind === "diff" ? "diff" : "file")) : "file"
   const format = tab.format ?? "unified"
   // 検索結果から行を指定して開いたときはソースを表示する
-  const md: MdMode = isMd ? (tab.md ?? (line ? "source" : "preview")) : "source"
+  const md: MdMode = canPreview ? (tab.md ?? (line ? "source" : "preview")) : "source"
   const update = (v: DocView) => actions.updateTab({ ...tab, ...v })
 
   return (
@@ -303,7 +319,7 @@ function DocumentPane(props: { tab: FileTab | DiffTab; actions: DocumentActions;
           <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] whitespace-nowrap text-muted-foreground">{baseLabel(diff.base)}</span>
         )}
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          {isMd && <Segmented value={md} onChange={(m) => update({ md: m })} options={MD_OPTIONS} />}
+          {(isMd || (canPreview && display === "file")) && <Segmented value={md} onChange={(m) => update({ md: m })} options={MD_OPTIONS} />}
           {display === "diff" && <Segmented value={format} onChange={(f) => update({ format: f })} options={FORMAT_OPTIONS} />}
           {diff && (
             <Segmented
@@ -319,7 +335,7 @@ function DocumentPane(props: { tab: FileTab | DiffTab; actions: DocumentActions;
       </Toolbar>
       <div data-find-root className="min-h-0 flex-1 overflow-auto">
         {diff && display === "diff" ? (
-          <LoadedDiff path={path} oldPath={diff.oldPath} base={diff.base} format={format} preview={md === "preview"} expandAll={diff.expandAll} actions={actions} />
+          <LoadedDiff path={path} oldPath={diff.oldPath} base={diff.base} format={format} preview={isMd && md === "preview"} expandAll={diff.expandAll} actions={actions} />
         ) : (
           <FileBody path={path} line={line} mdMode={md} actions={actions} />
         )}

@@ -3,7 +3,7 @@ import { globToRegExp, matchesAny, parseSearchGlobs } from "@/lib/glob"
 import { isSpec, parseSpecPaths, specBaseDir } from "@/lib/spec"
 import { buildMatcher } from "@/lib/search"
 import { relTime, formatSize } from "@/lib/format"
-import { checkRequest, hostname } from "@/lib/request-guard"
+import { checkRequest, hostname, isPreviewRequest } from "@/lib/request-guard"
 import { DEFAULT_EXCLUDES, parseExcludeLines } from "@/lib/excludes"
 import { buildMarkdownDiff, diffSides, withinHighlightLimit, type MdNode } from "@/lib/diff"
 import type { DiffLine } from "@/lib/types"
@@ -138,6 +138,17 @@ describe("request-guard", () => {
   it("cross-site は 403", () => {
     expect(checkRequest("GET", h({ host: "localhost:4747", "sec-fetch-site": "cross-site" }))?.status).toBe(403)
     expect(checkRequest("GET", h({ host: "localhost:4747", "sec-fetch-site": "same-origin" }))).toBeNull()
+  })
+  it("HTML のプレビュー (preview/<合言葉>/<path>) の GET / HEAD だけは cross-site でも通す (合言葉は Route Handler で確かめる)", () => {
+    const cross = h({ host: "localhost:4747", "sec-fetch-site": "cross-site" })
+    expect(checkRequest("GET", cross, "/api/projects/proj/worktrees/main/preview/tok/docs/style.css")).toBeNull()
+    expect(isPreviewRequest("HEAD", "/api/projects/proj/worktrees/main/preview/tok/index.html")).toBe(true)
+    // 合言葉とパスのないもの・プレビューでない API・GET / HEAD 以外は断る
+    expect(checkRequest("GET", cross, "/api/projects/proj/worktrees/main/preview/tok")?.status).toBe(403)
+    expect(checkRequest("GET", cross, "/api/projects/proj/worktrees/main/preview-token")?.status).toBe(403)
+    expect(checkRequest("GET", cross, "/api/projects/proj/worktrees/main/raw")?.status).toBe(403)
+    expect(checkRequest("GET", cross, "/")?.status).toBe(403)
+    expect(isPreviewRequest("POST", "/api/projects/proj/worktrees/main/preview/tok/index.html")).toBe(false)
   })
   it("書き込みは JSON だけ、Origin はローカルだけ", () => {
     expect(checkRequest("POST", h({ host: "localhost:4747" }))?.status).toBe(415)

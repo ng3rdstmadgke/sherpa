@@ -226,6 +226,48 @@ export async function rawFile(ctx: WtCtx, rel: string, rev: string | null): Prom
   })
 }
 
+// HTML のプレビューで返す型 (画像に加えて、ページを組み立てるもの)。ほかは application/octet-stream
+const PREVIEW_MIME: Record<string, string> = {
+  ...MIME,
+  html: "text/html; charset=utf-8",
+  htm: "text/html; charset=utf-8",
+  css: "text/css; charset=utf-8",
+  js: "text/javascript; charset=utf-8",
+  mjs: "text/javascript; charset=utf-8",
+  json: "application/json; charset=utf-8",
+  map: "application/json; charset=utf-8",
+  txt: "text/plain; charset=utf-8",
+  xml: "application/xml; charset=utf-8",
+  woff: "font/woff",
+  woff2: "font/woff2",
+  ttf: "font/ttf",
+  otf: "font/otf",
+  wasm: "application/wasm",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  mp3: "audio/mpeg",
+}
+
+// HTML のプレビュー (…/preview/<path>)。相対パスの CSS・画像・スクリプトも同じ形で読めるよう、パスを URL のパスで受ける。
+// sandbox allow-scripts の CSP で、スクリプトは動くが sherpa と別の origin になる (sherpa の API を読めない。security.md §6)
+export async function previewFile(ctx: WtCtx, rel: string): Promise<Response> {
+  const r = checkRel(rel)
+  const abs = await resolveInside(ctx.root, r)
+  const st = await stat(abs).catch(() => null)
+  if (!st?.isFile()) throw notFound("ファイルが見つかりません")
+  if (st.size > 50 * 1024 * 1024) throw new ApiError("INVALID_REQUEST", "大きすぎるため表示しません")
+  const body = await readFile(abs)
+  const ext = r.split(".").pop()?.toLowerCase() ?? ""
+  return new Response(new Uint8Array(body), {
+    headers: {
+      "Content-Type": PREVIEW_MIME[ext] ?? "application/octet-stream",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "sandbox allow-scripts",
+      "Cache-Control": "no-store",
+    },
+  })
+}
+
 // ---------------------------------------------------------------------------
 // SPEC
 // ---------------------------------------------------------------------------

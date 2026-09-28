@@ -183,6 +183,21 @@ describe("worktree の API", () => {
     expect(res.headers.get("x-content-type-options")).toBe("nosniff")
   })
 
+  it("preview は合言葉を確かめ、パスを URL のパスで受ける", async () => {
+    const { token } = (await wtGet<{ token: string }>("proj", "main", "preview-token")).body
+    const preview = (projectId: string, worktreeId: string, rest: string[]) =>
+      R.wt.GET(new Request(url(`/api/projects/${projectId}/worktrees/${worktreeId}/${rest.join("/")}`)), {
+        params: Promise.resolve({ projectId, worktreeId, rest }),
+      })
+    const res = await preview("proj", "main", ["preview", token, "img.png"])
+    expect(res.status).toBe(200)
+    expect(res.headers.get("content-type")).toBe("image/png")
+    expect(res.headers.get("content-security-policy")).toBe("sandbox allow-scripts")
+    // 合言葉が違う・別の worktree の合言葉では読めない
+    expect((await preview("proj", "main", ["preview", "x".repeat(token.length), "img.png"])).status).toBe(403)
+    expect((await preview("proj", "wt1", ["preview", token, "img.png"])).status).toBe(403)
+  })
+
   it("SPEC 欄の保存", async () => {
     const put = await call(R.wt.PUT, json("PUT", "/api/projects/proj/worktrees/wt1/spec-paths", { input: "agent-tasks/*" }), {
       projectId: "proj",

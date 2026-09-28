@@ -101,6 +101,16 @@ export const wtKey = (wt: WtRef, ...rest: unknown[]) => ["wt", wt.projectId, wt.
 
 export const rawUrl = (wt: WtRef, path: string, rev?: string | null) => wtUrl(wt, "raw", { path, rev })
 
+// HTML のプレビューの URL。token は usePreviewToken の合言葉。パスを URL のパスにする (ページの中の相対パスが、同じ形で解決されるように)
+export const previewUrl = (wt: WtRef, token: string, path: string) =>
+  wtUrl(wt, `preview/${encodeURIComponent(token)}/` + path.split("/").map(encodeURIComponent).join("/"))
+
+// プレビューの合言葉 (サーバーを起動し直すと変わるので、プレビューを開くたびに取り直す)
+export function usePreviewToken() {
+  const wt = useWt()
+  return useQuery({ queryKey: wtKey(wt, "preview-token"), queryFn: () => api<{ token: string }>(wtUrl(wt, "preview-token")), staleTime: 0 })
+}
+
 // DiffBase をクエリの base にする
 export function diffBaseParam(b: DiffBase | { type: "commit"; hash: string }): string {
   if (b.type === "uncommitted") return "uncommitted"
