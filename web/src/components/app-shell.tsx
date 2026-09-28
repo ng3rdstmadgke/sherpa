@@ -3,7 +3,8 @@
 import { useLayoutEffect, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { cn } from "cn"
-import { AlertTriangle, FolderGit2, GitBranch, Home, Moon, MoreHorizontal, Pencil, Plus, Settings, Sun, Trash2, X } from "lucide-react"
+import { AlertTriangle, GitBranch, Home, Moon, MoreHorizontal, Pencil, Plus, Settings, Sun, Trash2, X } from "lucide-react"
+import { Logo } from "@/components/logo"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { Project, Worktree } from "@/lib/types"
@@ -106,7 +107,7 @@ export function AppShell() {
         {/* プロジェクトタブ */}
         <header className="flex h-11 shrink-0 items-center gap-1 border-b bg-muted/50 px-2">
           <div className="mr-2 flex items-center gap-1.5 px-1 font-semibold tracking-tight">
-            <FolderGit2 className="size-5" />
+            <Logo className="size-5 text-primary" />
             sherpa
           </div>
           <button
