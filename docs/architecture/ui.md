@@ -6,8 +6,8 @@
 ┌ sherpa ─ [Projects] [● webapp ×] [● webapp / 33_new_region ×] [● infra ×] [⚙ 設定 ×] [+] ─ ☾ ⚙ ┐
 ├ [⎇ worktree ▼] [比較: main +未コミット ▼] [📄 SPEC: agent-tasks/…/*  4 件] (i)                  ⟳• ┤
 │📄│ /Contents\ /File\    │ [spec.md ×][regions.ts ×]  ◫ ⊟ × │ [overview.md (main) ×]    ◫ ⊟ × │
-│⎇ │ [🔍 検索  Aa ab .*]  │ regions.ts  [Unified|Split]        │ overview.md  [Unified|Split]     │
-│  │ ▾ SPEC (4)           │             [差分を閉じる]         │              [ファイル全体]      │
+│⎇ │ [🔍 検索  Aa ab .*]  │ regions.ts                         │ overview.md                      │
+│  │ ▾ SPEC (4)           │ [Unified|Split] [差分|全体]        │ [プレビュー|ソース] [差分|全体]  │
 │  │ ▾ EXPLORER           │  (エディタグループ 1)              │  (エディタグループ 2)            │
 └──┴──────────────────────┴────────────────────────────────────┴──────────────────────────────────┘
 ```
@@ -74,7 +74,7 @@
   - 「未コミットの変更を含む」(既定 ON)。ON なら比較範囲は `<branch>...作業ツリー`、OFF なら `<branch>...HEAD`
 - 新しく開いたタブの比較対象は、プロジェクトの既定の比較対象 ([git.md](git.md) §5)。どれもなければ「未選択」になり、選ぶまで COMPARE などは空
 - 選んだブランチが見つからない・エラーのときは、プルダウンを赤くする
-- 比較対象はタブ全体の設定で、Git メニューの COMPARE と HISTORY、エクスプローラの「変更のみ」と記号、ファイル表示の「差分を見る」、(i) の ↑↓ が参照する
+- 比較対象はタブ全体の設定で、Git メニューの COMPARE と HISTORY、エクスプローラの「変更のみ」と記号、ファイルのタブの「差分」、(i) の ↑↓ が参照する
 
 ## 5. メニュー (左端のアイコン列)
 

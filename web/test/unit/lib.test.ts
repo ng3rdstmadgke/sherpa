@@ -5,6 +5,12 @@ import { buildMatcher } from "@/lib/search"
 import { relTime, formatSize } from "@/lib/format"
 import { checkRequest, hostname } from "@/lib/request-guard"
 import { DEFAULT_EXCLUDES, parseExcludeLines } from "@/lib/excludes"
+import { buildMarkdownDiff, diffSides, withinHighlightLimit, type MdNode } from "@/lib/diff"
+import type { DiffLine } from "@/lib/types"
+import { createLayout, findGroup, openTab } from "@/components/workspace/editor-layout"
+import { unified } from "unified"
+import remarkParse from "remark-parse"
+import remarkGfm from "remark-gfm"
 
 describe("glob", () => {
   it("** は 0 個以上のディレクトリ、* は / をまたがない", () => {
@@ -145,5 +151,91 @@ describe("request-guard", () => {
     expect(checkRequest("PUT", h({ host: "localhost:4747", "content-type": "application/json; charset=utf-8", origin: "http://localhost:4800" }))).toBeNull()
     expect(checkRequest("DELETE", h({ host: "localhost:4747", "content-type": "application/json", origin: "http://evil.example" }))?.status).toBe(403)
     expect(checkRequest("POST", h({ host: "localhost:4747", "content-type": "application/json", origin: "null" }))?.status).toBe(403)
+  })
+})
+
+// git の unified diff と同じ形 (" " / "-" / "+" で始まる行) から DiffLine[] を作る
+function diffLines(spec: string[]): DiffLine[] {
+  let o = 0
+  let n = 0
+  return spec.map((s) => {
+    const text = s.slice(1)
+    if (s[0] === "-") return { type: "del", text, oldNo: ++o }
+    if (s[0] === "+") return { type: "add", text, newNo: ++n }
+    return { type: "ctx", text, oldNo: ++o, newNo: ++n }
+  })
+}
+
+// 印を付けた木を「種類[class] テキスト」の並びにする (比べやすくするため)
+function outline(nodes: MdNode[]): string[] {
+  const text = (n: MdNode): string => ("value" in n ? String(n.value) : (n.children ?? []).map(text).join(""))
+  return nodes.map((n) => {
+    const cls = (n.data?.hProperties as { className?: string[] } | undefined)?.className?.join(" ")
+    if (n.type === "mdDiff") return `${outline(n.children ?? []).join(" ")}[${cls}]`
+    const inner = n.children?.find((c) => c.type === "mdDiff")?.data?.hProperties as { className?: string[] } | undefined
+    const mark = cls ?? inner?.className?.join(" ")
+    return `${n.type}${mark ? `[${mark}]` : ""}:${text(n)}`
+  })
+}
+
+function markdownDiff(spec: string[], side?: "both" | "before" | "after") {
+  const lines = diffLines(spec)
+  const { before, after } = diffSides(lines)
+  const md = unified().use(remarkParse).use(remarkGfm)
+  return buildMarkdownDiff(md.parse(before.join("\n")) as MdNode, md.parse(after.join("\n")) as MdNode, lines, before, after, side)
+}
+
+describe("diff", () => {
+  it("diffSides は変更前と変更後の行に分ける", () => {
+    expect(diffSides(diffLines([" a", "-b", "+B", " c"]))).toEqual({ before: ["a", "b", "c"], after: ["a", "B", "c"] })
+  })
+  it("withinHighlightLimit は 5,000 行・20 万文字まで", () => {
+    expect(withinHighlightLimit(new Array(5000).fill("x"))).toBe(true)
+    expect(withinHighlightLimit(new Array(5001).fill("x"))).toBe(false)
+    expect(withinHighlightLimit(["x".repeat(200_000)])).toBe(false)
+  })
+})
+
+describe("Markdown のプレビューの差分", () => {
+  it("変わった段落は、変更前を削除・変更後を追加にし、変わらないまとまりはそのまま", () => {
+    const t = markdownDiff([" # T", " ", "-東京のみ。", "+東京と韓国。", " ", " 本文"])
+    expect(outline(t.children!)).toEqual(["heading:T", "paragraph[md-diff-del]:東京のみ。", "paragraph[md-diff-add]:東京と韓国。", "paragraph:本文"])
+  })
+  it("リストと表は、項目・行ごとに印を付ける", () => {
+    const list = markdownDiff([" - a", "-- b", "+- B", " - c", "+- d"])
+    expect(outline(list.children![0].children!)).toEqual(["listItem:a", "listItem[md-diff-del]:b", "listItem[md-diff-add]:B", "listItem:c", "listItem[md-diff-add]:d"])
+    const table = markdownDiff([" | a | b |", " | - | - |", " | 1 | 2 |", "-| 3 | 4 |", "+| 5 | 6 |"])
+    expect(outline(table.children![0].children!)).toEqual(["tableRow:ab", "tableRow:12", "tableRow[md-diff-del]:34", "tableRow[md-diff-add]:56"])
+  })
+  it("表の見出しが変わったときは、表ごとに入れ替える", () => {
+    const t = markdownDiff(["-| a | b |", "+| A | b |", " | - | - |", " | 1 | 2 |"])
+    expect(outline(t.children!)).toEqual(["table:ab12[md-diff-del]", "table:Ab12[md-diff-add]"])
+  })
+  it("空の行を足して段落を分けたときも、変わったことにする", () => {
+    const t = markdownDiff([" one", "+", " two"])
+    expect(outline(t.children!)).toEqual(["paragraph[md-diff-del]:one\ntwo", "paragraph[md-diff-add]:one", "paragraph[md-diff-add]:two"])
+  })
+  it("タスクリストのチェックが変わった項目は、項目ごと (class は task-list-item を残す)", () => {
+    const t = markdownDiff(["-- [ ] x", "+- [x] x", " - [ ] y"])
+    expect(outline(t.children![0].children!)).toEqual(["listItem[task-list-item md-diff-del]:x", "listItem[task-list-item md-diff-add]:x", "listItem:y"])
+  })
+})
+
+describe("Markdown のプレビューの差分 (Split)", () => {
+  const spec = [" # T", "-東京のみ。", "+東京と韓国。", "+", "+追加", " ", " 本文"]
+  it("左 (before) は削除の印のもの、右 (after) は追加の印のものだけを残す", () => {
+    expect(outline(markdownDiff(spec, "before").children!)).toEqual(["heading:T", "paragraph[md-diff-del]:東京のみ。", "paragraph:本文"])
+    expect(outline(markdownDiff(spec, "after").children!)).toEqual(["heading:T", "paragraph[md-diff-add]:東京と韓国。", "paragraph[md-diff-add]:追加", "paragraph:本文"])
+  })
+})
+
+describe("タブの表示のしかた", () => {
+  const tabOf = (l: ReturnType<typeof createLayout>) => findGroup(l.root, l.activeGroupId)!.tabs[0]
+  it("開いているタブを開き直しても、決めていない表示のしかたは引き継ぐ", () => {
+    let l = openTab(createLayout(), { kind: "file", path: "a.md", display: "diff", format: "split", md: "source" })
+    l = openTab(l, { kind: "file", path: "a.md" })
+    expect(tabOf(l)).toEqual({ kind: "file", path: "a.md", display: "diff", format: "split", md: "source" })
+    l = openTab(l, { kind: "file", path: "a.md", line: 3, display: "file", md: "source" })
+    expect(tabOf(l)).toEqual({ kind: "file", path: "a.md", line: 3, display: "file", format: "split", md: "source" })
   })
 })

@@ -1,13 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState, type CSSProperties } from "react"
 import { cn } from "cn"
 import { ChevronsUpDown } from "lucide-react"
+import type { BundledLanguage, ThemedToken } from "shiki"
+import { diffSides, withinHighlightLimit } from "@/lib/diff"
 import type { DiffLine } from "@/lib/types"
 
 // 差分の表示 (Unified / Split)。lines はファイル全体の 1 行ずつの差分 (変更のない行も含む)。
 // 既定では変更の前後 context 行だけを表示し、それ以外は「N 行を表示」の行に省略する (クリックで展開)。
 // expandAll のときは省略せず、ファイル全体の中で差分を表示する。
+// lang を渡すと、変更前と変更後をそれぞれ丸ごとシンタックスハイライトして、行ごとに当てる (複数行のコメントなども正しく色が付く)
 
 type Item = { kind: "lines"; lines: DiffLine[] } | { kind: "gap"; start: number; lines: DiffLine[] }
 
@@ -36,6 +39,50 @@ function buildItems(lines: DiffLine[], context: number, expandAll: boolean, expa
     }
   }
   return items
+}
+
+type Tokens = { before: ThemedToken[][]; after: ThemedToken[][] }
+
+// 変更前・変更後の全体をハイライトする。大きすぎるときと、ハイライトできない言語はしない
+function useDiffTokens(lines: DiffLine[], lang: string | undefined) {
+  const sides = useMemo(() => diffSides(lines), [lines])
+  const enabled = !!lang && lang !== "text" && withinHighlightLimit(sides.before) && withinHighlightLimit(sides.after)
+  const [result, setResult] = useState<{ lines: DiffLine[]; tokens: Tokens } | null>(null)
+  useEffect(() => {
+    if (!enabled) return
+    let cancelled = false
+    import("shiki").then(async ({ codeToTokens }) => {
+      const tokenize = (code: string[]) =>
+        codeToTokens(code.join("\n"), { lang: lang as BundledLanguage, themes: { light: "github-light", dark: "github-dark" }, defaultColor: false }).then((r) => r.tokens)
+      try {
+        const [before, after] = await Promise.all([tokenize(sides.before), tokenize(sides.after)])
+        if (!cancelled) setResult({ lines, tokens: { before, after } })
+      } catch {
+        // 知らない言語などは色を付けずに表示する
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [enabled, lang, lines, sides])
+  // 別の差分に切り替わった直後は、前の差分の色を使わない
+  return enabled && result?.lines === lines ? result.tokens : null
+}
+
+// 1 行の本文。削除の行は変更前、それ以外は変更後の行の色を使う
+function LineText({ line, tokens }: { line: DiffLine; tokens: Tokens | null }) {
+  const row = tokens && (line.type === "del" ? tokens.before[line.oldNo! - 1] : tokens.after[line.newNo! - 1])
+  if (!row) return line.text
+  // .shiki の規則 (globals.css) で、テーマの色・太字などを効かせる
+  return (
+    <span className="shiki">
+      {row.map((t, i) => (
+        <span key={i} style={t.htmlStyle as CSSProperties}>
+          {t.content}
+        </span>
+      ))}
+    </span>
+  )
 }
 
 const rowColor = {
@@ -71,7 +118,7 @@ function GapRow({ lines, onExpand }: { lines: DiffLine[]; onExpand: () => void }
   )
 }
 
-function UnifiedRows({ lines }: { lines: DiffLine[] }) {
+function UnifiedRows({ lines, tokens }: { lines: DiffLine[]; tokens: Tokens | null }) {
   return lines.map((l, j) => (
     <tr key={j} className={rowColor[l.type]}>
       <Num n={l.oldNo} />
@@ -79,7 +126,9 @@ function UnifiedRows({ lines }: { lines: DiffLine[] }) {
       <td data-find-ignore className="w-4 text-center text-muted-foreground select-none">
         {sign[l.type]}
       </td>
-      <td className="pr-4 break-all whitespace-pre-wrap">{l.text}</td>
+      <td className="pr-4 break-all whitespace-pre-wrap">
+        <LineText line={l} tokens={tokens} />
+      </td>
     </tr>
   ))
 }
@@ -103,16 +152,16 @@ function toSplitRows(lines: DiffLine[]) {
   return rows
 }
 
-function SplitRows({ lines }: { lines: DiffLine[] }) {
+function SplitRows({ lines, tokens }: { lines: DiffLine[]; tokens: Tokens | null }) {
   return toSplitRows(lines).map((r, j) => (
     <tr key={j}>
       <Num n={r.left?.oldNo} />
       <td className={cn("border-r pr-2 break-all whitespace-pre-wrap", r.left?.type === "del" && rowColor.del, !r.left && "bg-muted/40")}>
-        {r.left?.text}
+        {r.left && <LineText line={r.left} tokens={tokens} />}
       </td>
       <Num n={r.right?.newNo} />
       <td className={cn("pr-2 break-all whitespace-pre-wrap", r.right?.type === "add" && rowColor.add, !r.right && "bg-muted/40")}>
-        {r.right?.text}
+        {r.right && <LineText line={r.right} tokens={tokens} />}
       </td>
     </tr>
   ))
@@ -123,13 +172,16 @@ export function DiffViewer({
   mode,
   context = 3,
   expandAll = false,
+  lang,
 }: {
   lines: DiffLine[]
   mode: "unified" | "split"
   context?: number
   expandAll?: boolean
+  lang?: string
 }) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  const tokens = useDiffTokens(lines, lang)
   if (!lines.some((l) => l.type !== "ctx")) return <p className="p-4 text-sm text-muted-foreground">差分はありません</p>
 
   const items = buildItems(lines, context, expandAll, expanded)
@@ -150,9 +202,9 @@ export function DiffViewer({
           item.kind === "gap" ? (
             <GapRow key={`g${item.start}`} lines={item.lines} onExpand={() => expand(item.start)} />
           ) : mode === "unified" ? (
-            <UnifiedRows key={i} lines={item.lines} />
+            <UnifiedRows key={i} lines={item.lines} tokens={tokens} />
           ) : (
-            <SplitRows key={i} lines={item.lines} />
+            <SplitRows key={i} lines={item.lines} tokens={tokens} />
           ),
         )}
       </tbody>

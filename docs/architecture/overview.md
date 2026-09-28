@@ -82,7 +82,7 @@ web/
 | プロジェクト | 登録した git リポジトリ (main worktree のディレクトリ)。id はディレクトリ名から作る slug |
 | worktree | プロジェクトの作業ツリー。main worktree の id は `main`、それ以外は `.git/worktrees/<id>` の `<id>` |
 | タブ (プロジェクトタブ) | 一番上に並ぶタブ。1 つのタブが「プロジェクト + worktree」に対応する |
-| 比較対象 | タブごとに選ぶブランチ。COMPARE・HISTORY・エクスプローラの記号・「差分を見る」が参照する |
+| 比較対象 | タブごとに選ぶブランチ。COMPARE・HISTORY・エクスプローラの記号・ファイルのタブの「差分」が参照する |
 | SPEC | AI が作る設計資料 (spec / plan など) の `.md`。置き場所を worktree ごとに SPEC 欄で指定する |
 | 除外パターン | エクスプローラ・SPEC・検索のどれにも出さないパス。全体の設定 + プロジェクトの設定 |
 | パスのマッピング | devcontainer の中のパス → ホストのパスの対応。コンテナで作った worktree を読むのに使う |

@@ -471,7 +471,8 @@ function Tree(props: {
               hits.map((h) => (
                 <button
                   key={h.line}
-                  onClick={() => onOpen({ kind: "file", path: n.path, line: h.line })}
+                  // 行を見せるため、全体をソースで表示する
+                  onClick={() => onOpen({ kind: "file", path: n.path, line: h.line, display: "file", md: "source" })}
                   className="flex w-full gap-2 rounded py-0.5 pr-2 text-left hover:bg-accent"
                   style={{ paddingLeft: depth * 12 + 40 }}
                 >

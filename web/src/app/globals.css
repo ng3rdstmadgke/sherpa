@@ -196,6 +196,32 @@
   font-size: 0.93em;
 }
 
+/* ---- Markdown のプレビューの差分 (lib/diff.ts が付ける class) ----
+   段落の中身 (span) とそれ以外のまとまり (div) は左に線を引いて塗る。li と tr は塗るだけ (包むとリストや表が崩れるため) */
+.markdown-body :is(div, span).md-diff-add,
+.markdown-body :is(div, span).md-diff-del {
+  display: block;
+  margin-left: -0.75rem;
+  padding-left: calc(0.75rem - 3px);
+  border-left: 3px solid;
+}
+.markdown-body :is(div, span).md-diff-add {
+  border-left-color: #10b981; /* emerald-500 */
+}
+.markdown-body :is(div, span).md-diff-del {
+  border-left-color: #ef4444; /* red-500 */
+}
+.markdown-body :not(tr).md-diff-add,
+.markdown-body tr.md-diff-add > td {
+  background-color: rgb(16 185 129 / 0.12);
+}
+.markdown-body :not(tr).md-diff-del,
+.markdown-body tr.md-diff-del > td {
+  background-color: rgb(239 68 68 / 0.12);
+  text-decoration: line-through;
+  text-decoration-color: rgb(239 68 68 / 0.7);
+}
+
 .code-view .line.highlighted {
   display: inline-block;
   width: 100%;

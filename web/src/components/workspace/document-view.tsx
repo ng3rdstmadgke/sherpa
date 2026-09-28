@@ -2,41 +2,57 @@
 
 import { useState } from "react"
 import { cn } from "cn"
-import { AlertTriangle, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Copy, Eye, FileText, GitCompare } from "lucide-react"
+import { AlertTriangle, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Copy } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import type { Change, DiffResult, DiffSide, FileContent } from "@/lib/types"
+import type { Change, DiffLine, DiffResult, DiffSide, FileContent } from "@/lib/types"
 import { errorMessage, rawUrl, useCommit, useDiff, useFile, useWt } from "@/lib/api"
 import { formatSize, relTime } from "@/lib/format"
-import { CodeViewer } from "@/components/viewers/code-viewer"
-import { MarkdownViewer } from "@/components/viewers/markdown-viewer"
+import { CodeViewer, langFromPath } from "@/components/viewers/code-viewer"
+import { MarkdownDiffViewer, MarkdownViewer } from "@/components/viewers/markdown-viewer"
 import { DiffViewer } from "@/components/viewers/diff-viewer"
+import { diffSides, withinHighlightLimit } from "@/lib/diff"
 import { DiffStat, dirname, FileIcon, resolveRelative, statusColor } from "./common"
-import { baseLabel, type DiffBase, type DocTab } from "./editor-layout"
+import { baseLabel, type DiffBase, type DocTab, type DocView } from "./editor-layout"
 
 export type DocumentActions = {
   openFile: (path: string) => void
-  // 表示中のタブの状態を書き換える (ファイルタブの差分表示、差分タブの「差分 / ファイル全体」の切り替えなど)
+  // 表示中のタブの状態を書き換える (差分 / 全体、Unified / Split、プレビュー / ソースの切り替え)
   updateTab: (tab: DocTab) => void
   compareBase: DiffBase
   hasDiff: (path: string) => boolean
 }
 
-type DiffMode = "unified" | "split"
+type DiffFormat = "unified" | "split"
+type Display = "diff" | "file"
+type MdMode = "preview" | "source"
 
-function DiffModeToggle({ mode, onChange }: { mode: DiffMode; onChange: (m: DiffMode) => void }) {
+// 並んだボタンのうち 1 つを選ぶ (選んでいるものを塗る)。パスのバーの切り替えはすべてこの形にする
+function Segmented<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: { value: T; label: string; title?: string }[] }) {
   return (
-    <ToggleGroup variant="outline" size="sm" value={[mode]} onValueChange={(v: string[]) => v[0] && onChange(v[0] as DiffMode)}>
-      <ToggleGroupItem value="unified" className="h-6 px-2 text-xs">
-        Unified
-      </ToggleGroupItem>
-      <ToggleGroupItem value="split" className="h-6 px-2 text-xs">
-        Split
-      </ToggleGroupItem>
+    <ToggleGroup variant="outline" size="sm" spacing={0} value={[value]} onValueChange={(v: string[]) => v[0] && onChange(v[0] as T)}>
+      {options.map((o) => (
+        <ToggleGroupItem
+          key={o.value}
+          value={o.value}
+          title={o.title}
+          className="h-6 px-2 text-xs text-muted-foreground aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary/90 aria-pressed:hover:text-primary-foreground"
+        >
+          {o.label}
+        </ToggleGroupItem>
+      ))}
     </ToggleGroup>
   )
 }
+
+const FORMAT_OPTIONS: { value: DiffFormat; label: string }[] = [
+  { value: "unified", label: "Unified" },
+  { value: "split", label: "Split" },
+]
+const MD_OPTIONS: { value: MdMode; label: string }[] = [
+  { value: "preview", label: "プレビュー" },
+  { value: "source", label: "ソース" },
+]
 
 function Breadcrumb({ path }: { path: string }) {
   const [copied, setCopied] = useState(false)
@@ -88,21 +104,6 @@ export function DocumentView({ tab, actions }: { tab: DocTab; actions: DocumentA
   if (tab.kind === "commit") return <CommitView hash={tab.hash} />
   if (tab.kind === "diff") return <DiffDocument tab={tab} actions={actions} />
   return <FileDocument tab={tab} actions={actions} />
-}
-
-type MdMode = "preview" | "source"
-
-function MdModeToggle({ mode, onChange }: { mode: MdMode; onChange: (m: MdMode) => void }) {
-  return (
-    <ToggleGroup variant="outline" size="sm" value={[mode]} onValueChange={(v: string[]) => v[0] && onChange(v[0] as MdMode)}>
-      <ToggleGroupItem value="preview" className="h-6 px-2 text-xs">
-        プレビュー
-      </ToggleGroupItem>
-      <ToggleGroupItem value="source" className="h-6 px-2 text-xs">
-        ソース
-      </ToggleGroupItem>
-    </ToggleGroup>
-  )
 }
 
 // Markdown の画像の相対パスを、Markdown のあるディレクトリを基準にサーバーの raw の URL にする
@@ -167,8 +168,37 @@ function FileContentView(props: {
   )
 }
 
-// 差分の本文 (テキスト・画像・バイナリ)
-function DiffBody({ result, mode, expandAll }: { result: DiffResult; mode: DiffMode; expandAll?: boolean }) {
+// Markdown のプレビューの差分 (Unified は 1 つに重ね、Split は左に変更前・右に変更後)。
+// 差分が一部だけ (partial) のときと大きすぎるときは、プレビューにできないのでソースの差分を出す
+function MarkdownDiffBody(props: { path: string; lines: DiffLine[]; partial?: boolean; format: DiffFormat; expandAll?: boolean; actions: DocumentActions }) {
+  const { path, lines, format, actions } = props
+  const resolveImage = useImageResolver(path)
+  const { before, after } = diffSides(lines)
+  if (props.partial || !withinHighlightLimit(before) || !withinHighlightLimit(after))
+    return (
+      <>
+        <p className="border-b bg-muted/50 px-3 py-1 text-xs text-muted-foreground">大きなファイルのため、プレビューの差分は表示できません。ソースの差分を表示しています</p>
+        <DiffViewer lines={lines} mode={format} expandAll={props.expandAll} lang={props.partial ? undefined : langFromPath(path)} />
+      </>
+    )
+  if (!lines.some((l) => l.type !== "ctx")) return <p className="p-4 text-sm text-muted-foreground">差分はありません</p>
+  const viewer = { lines, resolveImage, onOpenLink: (href: string) => actions.openFile(resolveRelative(dirname(path), href)) }
+  if (format === "unified") return <MarkdownDiffViewer {...viewer} />
+  return (
+    <div className="grid grid-cols-2 divide-x">
+      <div className="min-w-0">
+        <MarkdownDiffViewer {...viewer} side="before" />
+      </div>
+      <div className="min-w-0">
+        <MarkdownDiffViewer {...viewer} side="after" />
+      </div>
+    </div>
+  )
+}
+
+// 差分の本文 (テキスト・画像・バイナリ)。preview は Markdown のプレビューの差分 (actions があるときだけ)
+function DiffBody(props: { path: string; result: DiffResult; format: DiffFormat; preview?: boolean; expandAll?: boolean; actions?: DocumentActions }) {
+  const { path, result, format, actions } = props
   const wt = useWt()
   if (result.kind === "binary") return <Notice>バイナリのファイルが変更されています</Notice>
   if (result.kind === "image") {
@@ -183,129 +213,93 @@ function DiffBody({ result, mode, expandAll }: { result: DiffResult; mode: DiffM
   return (
     <>
       {result.partial && <p className="border-b bg-muted/50 px-3 py-1 text-xs text-muted-foreground">大きなファイルのため、変更の前後だけを表示しています</p>}
-      {result.lines.length ? <DiffViewer lines={result.lines} mode={mode} expandAll={expandAll} /> : <Notice>変更はありません (空のファイル)</Notice>}
+      {!result.lines.length ? (
+        <Notice>変更はありません (空のファイル)</Notice>
+      ) : props.preview && actions ? (
+        <MarkdownDiffBody path={path} lines={result.lines} partial={result.partial} format={format} expandAll={props.expandAll} actions={actions} />
+      ) : (
+        // 大きなファイルは、ファイルの表示と同じくハイライトしない (partial は前後がそろわないのでしない)
+        <DiffViewer lines={result.lines} mode={format} expandAll={props.expandAll} lang={result.partial ? undefined : langFromPath(path)} />
+      )}
     </>
   )
 }
 
 // 差分を取ってきて表示する
-function LoadedDiff(props: { path: string; oldPath?: string; base: DiffBase | { type: "commit"; hash: string }; mode: DiffMode; expandAll?: boolean }) {
+function LoadedDiff(props: {
+  path: string
+  oldPath?: string
+  base: DiffBase | { type: "commit"; hash: string }
+  format: DiffFormat
+  preview?: boolean
+  expandAll?: boolean
+  actions?: DocumentActions
+}) {
   const { data, error, isPending } = useDiff(props.path, props.oldPath, props.base)
   if (isPending) return <Notice>読み込み中…</Notice>
   if (error) return <Notice error>{errorMessage(error)}</Notice>
-  return <DiffBody result={data} mode={props.mode} expandAll={props.expandAll} />
+  return <DiffBody path={props.path} result={data} format={props.format} preview={props.preview} expandAll={props.expandAll} actions={props.actions} />
 }
 
 type FileTab = Extract<DocTab, { kind: "file" }>
+type DiffTab = Extract<DocTab, { kind: "diff" }>
 
-// ファイルタブ。「差分を見る」を押すと、同じタブの中でファイル全体に差分を重ねて表示する (Unified / Split)
-function FileDocument({ tab, actions }: { tab: FileTab; actions: DocumentActions }) {
-  const { path, line } = tab
-  // 検索結果から行指定で開いたときはソースを表示する
-  const [mdMode, setMdMode] = useState<MdMode>(line ? "source" : "preview")
-  const diff = actions.hasDiff(path) ? tab.diff : undefined
-  const base = actions.compareBase
+// ファイルタブと差分タブの本文。パスのバーの右に [プレビュー|ソース] [Unified|Split] [差分|全体] を並べる。
+// プレビュー / ソースは Markdown だけ、Unified / Split は差分のときだけ、差分 / 全体は差分があるときだけ出す。
+// diff: 差分の取り方 (ファイルタブは比較対象との差分をファイル全体に重ねる。差分がなければ undefined)
+function DocumentPane(props: { tab: FileTab | DiffTab; actions: DocumentActions; diff?: { base: DiffBase; oldPath?: string; expandAll?: boolean } }) {
+  const { tab, actions, diff } = props
+  const { path } = tab
+  const isMd = path.endsWith(".md")
+  const line = tab.kind === "file" ? tab.line : undefined
+  const display: Display = diff ? (tab.display ?? (tab.kind === "diff" ? "diff" : "file")) : "file"
+  const format = tab.format ?? "unified"
+  // 検索結果から行を指定して開いたときはソースを表示する
+  const md: MdMode = isMd ? (tab.md ?? (line ? "source" : "preview")) : "source"
+  const update = (v: DocView) => actions.updateTab({ ...tab, ...v })
 
   return (
     <div className="flex h-full flex-col">
       <Toolbar>
         <Breadcrumb path={path} />
-        {diff && (
-          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] whitespace-nowrap text-muted-foreground">{baseLabel(base)}</span>
+        {diff && display === "diff" && (
+          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] whitespace-nowrap text-muted-foreground">{baseLabel(diff.base)}</span>
         )}
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          {diff ? (
-            <DiffModeToggle mode={diff} onChange={(m) => actions.updateTab({ ...tab, diff: m })} />
-          ) : (
-            path.endsWith(".md") && <MdModeToggle mode={mdMode} onChange={setMdMode} />
-          )}
-          {actions.hasDiff(path) && (
-            <Button
-              variant={diff ? "secondary" : "outline"}
-              size="xs"
-              onClick={() => actions.updateTab({ ...tab, diff: diff ? undefined : "unified" })}
-              title={diff ? "差分の表示をやめる" : `ファイル全体の中に ${baseLabel(base)} の差分を表示`}
-            >
-              <GitCompare className="size-3.5" /> {diff ? "差分を閉じる" : "差分を見る"}
-              {!diff && base.type === "branch" && <span className="font-mono text-[10px] text-muted-foreground">({base.branch})</span>}
-            </Button>
+          {isMd && <Segmented value={md} onChange={(m) => update({ md: m })} options={MD_OPTIONS} />}
+          {display === "diff" && <Segmented value={format} onChange={(f) => update({ format: f })} options={FORMAT_OPTIONS} />}
+          {diff && (
+            <Segmented
+              value={display}
+              onChange={(d) => update({ display: d })}
+              options={[
+                { value: "diff", label: "差分", title: `${baseLabel(diff.base)} との差分を表示` },
+                { value: "file", label: "全体", title: "ファイル全体を表示" },
+              ]}
+            />
           )}
         </div>
       </Toolbar>
       <div data-find-root className="min-h-0 flex-1 overflow-auto">
-        {diff ? <LoadedDiff path={path} base={base} mode={diff} expandAll /> : <FileBody path={path} line={line} mdMode={mdMode} actions={actions} />}
+        {diff && display === "diff" ? (
+          <LoadedDiff path={path} oldPath={diff.oldPath} base={diff.base} format={format} preview={md === "preview"} expandAll={diff.expandAll} actions={actions} />
+        ) : (
+          <FileBody path={path} line={line} mdMode={md} actions={actions} />
+        )}
       </div>
     </div>
   )
 }
 
-type DiffTab = Extract<DocTab, { kind: "diff" }>
+// ファイルタブ。比較対象との差分があれば「差分」で、ファイル全体に差分を重ねて表示する (既定は「全体」)
+function FileDocument({ tab, actions }: { tab: FileTab; actions: DocumentActions }) {
+  const diff = actions.hasDiff(tab.path) ? { base: actions.compareBase, expandAll: true } : undefined
+  return <DocumentPane tab={tab} actions={actions} diff={diff} />
+}
 
-// 差分タブ。同じタブの中で「差分」と「ファイル全体」を切り替える
+// 差分タブ。変更のない部分は省略する (既定は「差分」)
 function DiffDocument({ tab, actions }: { tab: DiffTab; actions: DocumentActions }) {
-  const { path, base, oldPath } = tab
-  const display = tab.display ?? "diff"
-  const [mode, setMode] = useState<DiffMode>("unified")
-  const [mdPreview, setMdPreview] = useState(false)
-  const [mdMode, setMdMode] = useState<MdMode>("preview")
-  const isMd = path.endsWith(".md")
-
-  return (
-    <div className="flex h-full flex-col">
-      <Toolbar>
-        <Breadcrumb path={path} />
-        <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] whitespace-nowrap text-muted-foreground">{baseLabel(base)}</span>
-        <div className="ml-auto flex shrink-0 items-center gap-2">
-          {display === "diff" ? (
-            <>
-              {isMd && (
-                <Button variant={mdPreview ? "secondary" : "outline"} size="xs" onClick={() => setMdPreview((x) => !x)}>
-                  <Eye className="size-3.5" /> 変更後をプレビュー
-                </Button>
-              )}
-              <DiffModeToggle mode={mode} onChange={setMode} />
-            </>
-          ) : (
-            isMd && <MdModeToggle mode={mdMode} onChange={setMdMode} />
-          )}
-          {/* 押すたびに「差分」と「ファイル全体」を入れ替える。ラベルは切り替え先 */}
-          <Button
-            variant="outline"
-            size="xs"
-            onClick={() => actions.updateTab({ ...tab, display: display === "diff" ? "file" : "diff" })}
-            title={display === "diff" ? "ファイル全体を表示" : "差分を表示"}
-          >
-            {display === "diff" ? (
-              <>
-                <FileText className="size-3.5" /> ファイル全体
-              </>
-            ) : (
-              <>
-                <GitCompare className="size-3.5" /> 差分
-              </>
-            )}
-          </Button>
-        </div>
-      </Toolbar>
-      <div data-find-root className="min-h-0 flex-1 overflow-auto">
-        {display === "file" ? (
-          <FileBody path={path} mdMode={mdMode} actions={actions} />
-        ) : mdPreview && isMd ? (
-          <ResizablePanelGroup orientation="horizontal">
-            <ResizablePanel className="overflow-auto!">
-              <LoadedDiff path={path} oldPath={oldPath} base={base} mode="unified" />
-            </ResizablePanel>
-            <ResizableHandle withHandle />
-            <ResizablePanel className="overflow-auto!">
-              <FileBody path={path} mdMode="preview" actions={actions} />
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        ) : (
-          <LoadedDiff path={path} oldPath={oldPath} base={base} mode={mode} />
-        )}
-      </div>
-    </div>
-  )
+  return <DocumentPane tab={tab} actions={actions} diff={{ base: tab.base, oldPath: tab.oldPath }} />
 }
 
 function CommitView({ hash }: { hash: string }) {
@@ -319,7 +313,7 @@ function CommitView({ hash }: { hash: string }) {
 const COMMIT_EXPAND_LIMIT = 50
 
 function CommitDetail({ commit }: { commit: { hash: string; shortHash: string; message: string; body: string; author: string; date: string; files: Change[] } }) {
-  const [mode, setMode] = useState<DiffMode>("unified")
+  const [mode, setMode] = useState<DiffFormat>("unified")
   const [open, setOpen] = useState<Set<string>>(() => new Set(commit.files.length <= COMMIT_EXPAND_LIMIT ? commit.files.map((f) => f.path) : []))
   const toggle = (p: string) =>
     setOpen((prev) => {
@@ -341,7 +335,7 @@ function CommitDetail({ commit }: { commit: { hash: string; shortHash: string; m
             {allOpen ? <ChevronsDownUp className="size-3.5" /> : <ChevronsUpDown className="size-3.5" />}
             {allOpen ? "すべて折りたたむ" : "すべて展開"}
           </Button>
-          <DiffModeToggle mode={mode} onChange={setMode} />
+          <Segmented value={mode} onChange={setMode} options={FORMAT_OPTIONS} />
         </div>
       </Toolbar>
       <div data-find-root className="min-h-0 flex-1 overflow-auto p-6">
@@ -368,7 +362,7 @@ function CommitDetail({ commit }: { commit: { hash: string; shortHash: string; m
                     <DiffStat additions={f.additions} deletions={f.deletions} />
                   </span>
                 </button>
-                {isOpen && <LoadedDiff path={f.path} oldPath={f.oldPath} base={{ type: "commit", hash: commit.hash }} mode={mode} />}
+                {isOpen && <LoadedDiff path={f.path} oldPath={f.oldPath} base={{ type: "commit", hash: commit.hash }} format={mode} />}
               </div>
             )
           })}

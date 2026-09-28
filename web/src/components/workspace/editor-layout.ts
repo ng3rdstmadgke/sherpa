@@ -4,12 +4,15 @@
 // 差分の比較元。"uncommitted" は HEAD との比較、それ以外はブランチ名 (<branch>...HEAD)
 export type DiffBase = { type: "uncommitted" } | { type: "branch"; branch: string; includeUncommitted: boolean }
 
+// ファイルタブと差分タブの本文の表示 (タブごとに保存する。なし = 既定)
+// display: 差分か全体か (既定はファイルタブは全体、差分タブは差分) / format: 差分の形式 (既定は unified) /
+// md: Markdown をプレビューとソースのどちらで見るか (既定はプレビュー。行を指定して開いたときはソース)
+export type DocView = { display?: "diff" | "file"; format?: "unified" | "split"; md?: "preview" | "source" }
+
 export type DocTab =
-  // diff: ファイル全体の中で差分を表示するときの形式 (なし = 通常の表示)
-  | { kind: "file"; path: string; line?: number; diff?: "unified" | "split" }
-  // display: 差分を表示するか、ファイル全体を表示するか (既定は差分)
+  | ({ kind: "file"; path: string; line?: number } & DocView)
   // oldPath: 名前を変えたときの元のパス (差分を取るのに使う。タブの識別には使わない)
-  | { kind: "diff"; path: string; oldPath?: string; base: DiffBase; display?: "diff" | "file" }
+  | ({ kind: "diff"; path: string; oldPath?: string; base: DiffBase } & DocView)
   | { kind: "commit"; hash: string }
 
 export function baseKey(b: DiffBase) {
@@ -52,11 +55,20 @@ function mapGroup(node: LayoutNode, id: string, fn: (g: Group) => Group): Layout
   return { ...node, children: node.children.map((c) => mapGroup(c, id, fn)) }
 }
 
+function keepView(old: DocTab, tab: DocTab): DocTab {
+  if (old.kind === "commit" || tab.kind === "commit") return tab
+  const view: DocView = {}
+  if (old.display) view.display = old.display
+  if (old.format) view.format = old.format
+  if (old.md) view.md = old.md
+  return { ...view, ...tab }
+}
+
 function addTab(g: Group, tab: DocTab): Group {
   const key = tabKey(tab)
   const exists = g.tabs.some((t) => tabKey(t) === key)
-  // 既に開いている場合は差し替える (行番号などを更新するため)
-  const tabs = exists ? g.tabs.map((t) => (tabKey(t) === key ? tab : t)) : [...g.tabs, tab]
+  // 既に開いている場合は差し替える (行番号などを更新するため)。表示のしかた (DocView) は、新しいタブが決めていなければ引き継ぐ
+  const tabs = exists ? g.tabs.map((t) => (tabKey(t) === key ? keepView(t, tab) : t)) : [...g.tabs, tab]
   return { ...g, tabs, activeKey: key }
 }
 
