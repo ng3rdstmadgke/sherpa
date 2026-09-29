@@ -441,6 +441,7 @@ function Tree(props: {
           <div key={n.path}>
             <button
               data-tree-path={n.path}
+              data-tree-download
               draggable
               onDragStart={dragFile(n.path)}
               className={cn(

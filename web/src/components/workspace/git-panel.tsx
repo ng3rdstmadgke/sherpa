@@ -108,6 +108,8 @@ function ChangeTree({ items, base, onOpen }: { items: Change[]; base: DiffBase; 
             draggable
             onDragStart={(e) => setTabDrag(e, { tab, fromGroupId: null })}
             data-tree-path={c.path}
+            // 削除したファイルは作業ツリーにないので、ダウンロードできない
+            data-tree-download={c.status === "D" ? undefined : ""}
             onClick={() => onOpen(tab)}
             className="flex w-full items-center gap-1.5 rounded py-0.5 pr-2 text-left text-sm hover:bg-accent"
             style={{ paddingLeft: treeIndent(depth, "file") }}

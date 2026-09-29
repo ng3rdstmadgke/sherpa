@@ -101,6 +101,9 @@ export const wtKey = (wt: WtRef, ...rest: unknown[]) => ["wt", wt.projectId, wt.
 
 export const rawUrl = (wt: WtRef, path: string, rev?: string | null) => wtUrl(wt, "raw", { path, rev })
 
+// ファイルをダウンロードする URL (作業ツリーの今のファイル。Content-Disposition: attachment で返る)
+export const downloadUrl = (wt: WtRef, path: string) => wtUrl(wt, "raw", { path, download: true })
+
 // HTML のプレビューの URL。token は usePreviewToken の合言葉。パスを URL のパスにする (ページの中の相対パスが、同じ形で解決されるように)
 export const previewUrl = (wt: WtRef, token: string, path: string) =>
   wtUrl(wt, `preview/${encodeURIComponent(token)}/` + path.split("/").map(encodeURIComponent).join("/"))

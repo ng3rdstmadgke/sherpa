@@ -41,7 +41,7 @@ export const GET = route<Ctx>(async (req, { params }) => {
     case "file":
       return readContent(ctx, checkRel(q.get("path")))
     case "raw":
-      return rawFile(ctx, q.get("path") ?? "", q.get("rev") || null)
+      return rawFile(ctx, q.get("path") ?? "", q.get("rev") || null, flag(q, "download"))
     case "changes":
       return changes(ctx)
     case "branches":

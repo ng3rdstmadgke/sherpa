@@ -47,6 +47,7 @@
 - `X-Content-Type-Options: nosniff`、`Content-Security-Policy: sandbox`、`Cache-Control: no-store` を付ける
 - Content-Type は拡張子から決めた画像の型だけ。それ以外は `application/octet-stream` にする (worktree の中の HTML や SVG が sherpa の画面として動かないように)
 - 50 MB を超えるものは返さない
+- ダウンロード (`download=1`。作業ツリーのファイルだけ) は、Content-Type を常に `application/octet-stream` にし、`Content-Disposition: attachment` を付ける (ファイル名は `filename` に ASCII だけ、`filename*` に UTF-8)。画面には表示しないので大きさの上限は設けず、少しずつ読んで返す。パスの検証は §3 と同じ
 
 ## 6. HTML のプレビュー (`GET …/preview/<合言葉>/<path>`)
 

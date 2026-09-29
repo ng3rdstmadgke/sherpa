@@ -1,5 +1,7 @@
+import { createReadStream } from "node:fs"
 import { lstat, readdir, readFile, readlink, realpath, stat } from "node:fs/promises"
 import path from "node:path"
+import { Readable } from "node:stream"
 import { matchesAny } from "@/lib/glob"
 import { isSpec, parseSpecPaths, specBaseDir } from "@/lib/spec"
 import type { FileContent, FileNode, PathEntry, SpecResult, TreeResult } from "@/lib/types"
@@ -203,9 +205,32 @@ const MIME: Record<string, string> = {
   avif: "image/avif",
 }
 
-// ファイルのバイト列。worktree の中の HTML や SVG が sherpa の画面として動かないよう、sandbox の CSP を付ける
-export async function rawFile(ctx: WtCtx, rel: string, rev: string | null): Promise<Response> {
+// ダウンロードのファイル名 (Content-Disposition)。日本語などは filename* で渡し、古い形の filename には ASCII だけを残す
+export function contentDisposition(name: string) {
+  const ascii = name.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_")
+  const encoded = encodeURIComponent(name).replace(/['()*]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase())
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`
+}
+
+// ファイルのバイト列。worktree の中の HTML や SVG が sherpa の画面として動かないよう、sandbox の CSP を付ける。
+// download: ダウンロード (右クリックメニュー)。表示しないので大きさの上限は設けず、少しずつ読んで返す
+export async function rawFile(ctx: WtCtx, rel: string, rev: string | null, download = false): Promise<Response> {
   const r = checkRel(rel)
+  if (download && !rev) {
+    const abs = await resolveInside(ctx.root, r)
+    const st = await stat(abs).catch(() => null)
+    if (!st?.isFile()) throw notFound("ファイルが見つかりません")
+    return new Response(Readable.toWeb(createReadStream(abs)) as ReadableStream<Uint8Array>, {
+      headers: {
+        "Content-Type": "application/octet-stream",
+        "Content-Length": String(st.size),
+        "Content-Disposition": contentDisposition(path.basename(r)),
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "sandbox",
+        "Cache-Control": "no-store",
+      },
+    })
+  }
   let body: Buffer
   if (rev) body = await catBlob(ctx, rev, r)
   else {

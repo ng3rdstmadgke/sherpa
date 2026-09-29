@@ -193,6 +193,20 @@ describe("ファイルの内容", () => {
     expect(await code(S.files.rawFile(c, "README.md", "HEAD"))).toBe("INVALID_REQUEST:400")
   })
 
+  it("raw の download: attachment とファイル名 (日本語は filename*) を付けて、中身をそのまま返す", async () => {
+    const c = await ctx()
+    const res = await S.files.rawFile(c, "メモ 1.md", null, true)
+    expect(res.headers.get("content-type")).toBe("application/octet-stream")
+    expect(res.headers.get("content-disposition")).toBe(`attachment; filename="__ 1.md"; filename*=UTF-8''%E3%83%A1%E3%83%A2%201.md`)
+    const { readFileSync } = await import("node:fs")
+    const body = Buffer.from(await res.arrayBuffer())
+    expect(body.equals(readFileSync(`${c.root}/メモ 1.md`))).toBe(true)
+    expect(res.headers.get("content-length")).toBe(String(body.length))
+    expect(await code(S.files.rawFile(c, "src", null, true))).toBe("NOT_FOUND:404")
+    expect(await code(S.files.rawFile(c, "link-out", null, true))).toBe("OUTSIDE:403")
+    expect(S.files.contentDisposition(`a"b\\c.txt`)).toBe(`attachment; filename="a_b_c.txt"; filename*=UTF-8''a%22b%5Cc.txt`)
+  })
+
   it("preview: 拡張子の型と、スクリプトだけ許す sandbox の CSP を付ける。外を指すリンクは読まない", async () => {
     const c = await ctx()
     const img = await S.files.previewFile(c, "img.png")

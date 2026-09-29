@@ -2,17 +2,22 @@
 
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { Check, Copy } from "lucide-react"
+import { Check, Copy, Download } from "lucide-react"
+import { downloadUrl, useWt } from "@/lib/api"
 
 // ツリーの右クリックメニュー。ツリー全体に 1 つだけ置き (行ごとには持たない)、
 // 右クリックされた位置から一番近い [data-tree-path] の行を対象にする。
 // 行以外の場所を右クリックしたときは、ブラウザ標準のメニューを出す。
+// [data-tree-download] の付いた行 (作業ツリーにあるファイル) には「ダウンロード」も出す。
 
-type MenuState = { x: number; y: number; path: string; row: HTMLElement }
+type MenuState = { x: number; y: number; path: string; row: HTMLElement; download: boolean }
+
+const itemClass = "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm outline-none hover:bg-accent focus-visible:bg-accent"
 
 const MENU_WIDTH = 224
 
 export function TreeContextMenu({ children }: { children: React.ReactNode }) {
+  const wt = useWt()
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -46,6 +51,17 @@ export function TreeContextMenu({ children }: { children: React.ReactNode }) {
     setTimeout(() => setCopied(null), 1500)
   }
 
+  // ファイルをダウンロードする (サーバーが Content-Disposition: attachment で返すので、画面は移らない)
+  const download = (path: string) => {
+    setMenu(null)
+    const a = document.createElement("a")
+    a.href = downloadUrl(wt, path)
+    a.download = path.split("/").pop() ?? ""
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  }
+
   return (
     <div
       onContextMenu={(e) => {
@@ -54,9 +70,10 @@ export function TreeContextMenu({ children }: { children: React.ReactNode }) {
         e.preventDefault()
         setMenu({
           x: Math.min(e.clientX, window.innerWidth - MENU_WIDTH - 8),
-          y: Math.min(e.clientY, window.innerHeight - 60),
+          y: Math.min(e.clientY, window.innerHeight - 100),
           path: row.dataset.treePath!,
           row,
+          download: row.dataset.treeDownload !== undefined,
         })
       }}
     >
@@ -77,10 +94,15 @@ export function TreeContextMenu({ children }: { children: React.ReactNode }) {
               role="menuitem"
               autoFocus
               onClick={() => copy(menu.path)}
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm outline-none hover:bg-accent focus-visible:bg-accent"
+              className={itemClass}
             >
               <Copy className="size-3.5" /> 相対パスをコピー
             </button>
+            {menu.download && (
+              <button role="menuitem" onClick={() => download(menu.path)} className={itemClass}>
+                <Download className="size-3.5" /> ダウンロード
+              </button>
+            )}
           </div>,
           document.body,
         )}
