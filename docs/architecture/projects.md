@@ -11,7 +11,9 @@
 - 項目
   - **ディレクトリ** (編集では変更できない): ホームの下のディレクトリだけ。末尾の `/` と `~` は正規化して絶対パスで保存する
   - **表示名**: 既定はディレクトリ名
-  - **devcontainer のパスマッピング**: コンテナのパスとホストのパス。自動で検出する (§3)。ホストは手で書き換えるまでディレクトリと同じ値
+  - **devcontainer のパスマッピング** (省略できる): 「devcontainer を使う」のチェックを ON にしたときだけ、コンテナのパスとホストのパスを入れて保存する。OFF ならマッピングなしで保存する
+    - チェックの既定は、登録では自動の検出 (§3) でマッピングが見つかれば ON、見つからなければ OFF (横に「自動検出」/「devcontainer の設定なし」と出す)。編集では、保存したマッピングがあれば ON
+    - コンテナのパスは自動で検出した値 (なければ `/workspaces/<ディレクトリ名>`)、ホストは手で書き換えるまでディレクトリと同じ値
   - **既定の比較対象のブランチ**: 「自動」かブランチの一覧 (ローカル / リモート) から選ぶ。自動なら、実際に使うブランチを横に出す ([git.md](git.md) §5)
   - **表示しないパス (除外パターン)**: 全体の設定に追加するパターン、1 行に 1 つ ([files.md](files.md) §3)。「全体の設定を開く」のリンクで設定タブの項目を開く
 - ディレクトリを入力すると `GET /api/projects/detect` で調べ、登録できないときは理由を出して「登録」を押せなくする
@@ -58,7 +60,8 @@ worktree をコンテナの中で作ると、`.git` ファイルにコンテナ�
 - 自動の検出 (登録ダイアログ)
   1. `.devcontainer/devcontainer.json`、`.devcontainer.json`、`.devcontainer/*/devcontainer.json` の `workspaceFolder` (コメント付き JSON。`${localWorkspaceFolderBasename}` は置き換える)
   2. 1 がなければ、worktree の `.git` ファイルに記録されている `gitdir: <X>/.git/worktrees/<id>` の `<X>` (実際に記録されているパスなので確実)
-  3. どちらもなければ `/workspaces/<ディレクトリ名>` (devcontainer の既定)
+  3. どちらもなく、devcontainer.json があれば (`workspaceFolder` がないとき) `/workspaces/<ディレクトリ名>` (devcontainer の既定)
+  4. devcontainer.json も、コンテナで作った worktree もなければ、devcontainer を使っていないとみなしてマッピングなし
 - ホストの側は登録するディレクトリ
 - (i) 詳細には、読み替えている worktree のコンテナの中のパスを出す
 

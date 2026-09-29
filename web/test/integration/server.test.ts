@@ -75,6 +75,21 @@ describe("worktree の検出とパスの読み替え", () => {
     }
   })
 
+  it("devcontainer を使っていなければマッピングはなし。devcontainer.json に workspaceFolder がなければ /workspaces/<dir>", async () => {
+    const { mkdtempSync, mkdirSync, rmSync, writeFileSync } = await import("node:fs")
+    const { tmpdir } = await import("node:os")
+    const dir = path.join(mkdtempSync(path.join(tmpdir(), "sherpa-map-")), "plain")
+    try {
+      mkdirSync(path.join(dir, ".git"), { recursive: true })
+      expect(await S.worktrees.detectMappings(dir)).toEqual([])
+      mkdirSync(path.join(dir, ".devcontainer"))
+      writeFileSync(path.join(dir, ".devcontainer/devcontainer.json"), '{ // コメント付き\n "name": "x" }')
+      expect(await S.worktrees.detectMappings(dir)).toEqual([{ container: "/workspaces/plain", host: dir }])
+    } finally {
+      rmSync(path.dirname(dir), { recursive: true, force: true })
+    }
+  })
+
   it("コンテナ内のパスを読み替え、消えた worktree と、id と名前の違う worktree を扱う", async () => {
     const list = await S.worktrees.discoverWorktrees(fx.proj, row().pathMappings)
     const byId = Object.fromEntries(list.map((w) => [w.id, w]))

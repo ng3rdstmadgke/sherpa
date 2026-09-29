@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -67,12 +68,16 @@ function ProjectForm({ project, close }: { project?: Project; close: () => void 
   const [name, setName] = useState<string | null>(project?.name ?? null)
   const [container, setContainer] = useState<string | null>(project?.pathMappings[0]?.container ?? null)
   const [hostPath, setHostPath] = useState<string | null>(project?.pathMappings[0] ? tildify(project.pathMappings[0].host) : null)
+  // devcontainer を使うか。手で切り替えるまでは、編集ではマッピングがあるか、登録では自動の検出で見つかったか
+  const [useMapping, setUseMapping] = useState<boolean | null>(project ? project.pathMappings.length > 0 : null)
   const [excludes, setExcludes] = useState((project?.excludes ?? []).join("\n"))
   // "" は自動 (main → master → develop の順に探す)
   const [compareBranch, setCompareBranch] = useState(project?.defaultCompareBranch ?? "")
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
+  const detected = (d?.pathMappings.length ?? 0) > 0
+  const mappingOn = useMapping ?? detected
   const containerValue = container ?? d?.pathMappings[0]?.container ?? `/workspaces/${dirName}`
   const hostValue = hostPath ?? (editing ? tildify(project.path) : path.replace(/\/+$/, ""))
   const branches = d?.branches ?? []
@@ -100,7 +105,7 @@ function ProjectForm({ project, close }: { project?: Project; close: () => void 
     const body: ProjectInput = {
       path: editing ? undefined : path,
       name: name ?? d?.name ?? dirName,
-      pathMappings: [{ container: containerValue, host: hostValue }],
+      pathMappings: mappingOn ? [{ container: containerValue, host: hostValue }] : [],
       excludes: parseExcludeLines(excludes),
       defaultCompareBranch: compareBranch || null,
     }
@@ -149,21 +154,32 @@ function ProjectForm({ project, close }: { project?: Project; close: () => void 
           <Input value={name ?? d?.name ?? dirName} onChange={(e) => setName(e.target.value)} />
         </div>
         <div className="space-y-1.5 rounded-md border p-3">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            devcontainer パスマッピング
-            <Badge variant="secondary" className="text-[10px]">
-              自動検出
-            </Badge>
-          </div>
-          <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1.5 text-sm">
-            <span className="text-xs text-muted-foreground">コンテナ</span>
-            <Input value={containerValue} onChange={(e) => setContainer(e.target.value)} className="h-7 font-mono text-xs" />
-            <span className="text-xs text-muted-foreground">ホスト</span>
-            <PathSuggestInput value={hostValue} onChange={setHostPath} list={listHostDir} listKey="host" dirsOnly className="h-7 font-mono text-xs md:text-xs" />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            .devcontainer/devcontainer.json の workspaceFolder (未指定なら worktree の .git に記録されたパスか /workspaces/&lt;dir&gt;) から推定。worktree の .git が指すコンテナ内パスを読み替えます。
-          </p>
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <Checkbox checked={mappingOn} onCheckedChange={(v) => setUseMapping(!!v)} />
+            devcontainer を使う (パスマッピング)
+            {!editing && d && useMapping === null && (
+              <Badge variant="secondary" className="text-[10px]">
+                {detected ? "自動検出" : "devcontainer の設定なし"}
+              </Badge>
+            )}
+          </label>
+          {mappingOn ? (
+            <>
+              <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1.5 text-sm">
+                <span className="text-xs text-muted-foreground">コンテナ</span>
+                <Input value={containerValue} onChange={(e) => setContainer(e.target.value)} className="h-7 font-mono text-xs" />
+                <span className="text-xs text-muted-foreground">ホスト</span>
+                <PathSuggestInput value={hostValue} onChange={setHostPath} list={listHostDir} listKey="host" dirsOnly className="h-7 font-mono text-xs md:text-xs" />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                .devcontainer/devcontainer.json の workspaceFolder (未指定なら worktree の .git に記録されたパスか /workspaces/&lt;dir&gt;) から推定。worktree の .git が指すコンテナ内パスを読み替えます。
+              </p>
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              コンテナの中で worktree を作っていなければ不要です。devcontainer の中で作った worktree を開くときは、ON にしてコンテナのパスを指定します。
+            </p>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="default-compare">既定の比較対象のブランチ</Label>

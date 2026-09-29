@@ -86,15 +86,18 @@ async function isDir(p: string) {
 }
 
 // devcontainer のパスマッピングの自動検出。
-// 1. devcontainer.json の workspaceFolder、2. worktree の .git ファイルに記録されたパス、3. /workspaces/<ディレクトリ名>
+// 1. devcontainer.json の workspaceFolder、2. worktree の .git ファイルに記録されたパス、
+// 3. devcontainer.json があれば /workspaces/<ディレクトリ名>。どれもなければ devcontainer を使っていないとみなし、空を返す
 export async function detectMappings(root: string): Promise<PathMapping[]> {
   const base = path.basename(root)
   const candidates = [path.join(root, ".devcontainer/devcontainer.json"), path.join(root, ".devcontainer.json")]
   const sub = await readdir(path.join(root, ".devcontainer"), { withFileTypes: true }).catch(() => [])
   for (const d of sub) if (d.isDirectory()) candidates.push(path.join(root, ".devcontainer", d.name, "devcontainer.json"))
+  let hasConfig = false
   for (const file of candidates) {
     const text = await readText(file)
     if (!text) continue
+    hasConfig = true
     const json = parseJsonc(text) as { workspaceFolder?: string } | undefined
     if (json?.workspaceFolder) {
       const folder = json.workspaceFolder.replace(/\$\{localWorkspaceFolderBasename\}/g, base).replace(/\/+$/, "")
@@ -117,5 +120,6 @@ export async function detectMappings(root: string): Promise<PathMapping[]> {
       }
     }
   }
-  return [{ container: `/workspaces/${base}`, host: root }]
+  // devcontainer.json はあるが workspaceFolder がないときは、devcontainer の既定。devcontainer を使っていなければマッピングはなし
+  return hasConfig ? [{ container: `/workspaces/${base}`, host: root }] : []
 }
