@@ -250,13 +250,39 @@ describe("すべてのタブを閉じる", () => {
 })
 
 describe("タブの表示のしかた", () => {
-  const tabOf = (l: ReturnType<typeof createLayout>) => findGroup(l.root, l.activeGroupId)!.tabs[0]
-  it("開いているタブを開き直しても、決めていない表示のしかたは引き継ぐ", () => {
+  const groupOf = (l: ReturnType<typeof createLayout>) => findGroup(l.root, l.activeGroupId)!
+  it("表示のしかたはグループの中のタブで共有する。rev はタブごと", () => {
     let l = openTab(createLayout(), { kind: "file", path: "a.md", display: "diff", format: "split", md: "source" })
-    l = openTab(l, { kind: "file", path: "a.md" })
-    expect(tabOf(l)).toEqual({ kind: "file", path: "a.md", display: "diff", format: "split", md: "source" })
+    l = openTab(l, { kind: "file", path: "b.md" })
+    expect(groupOf(l).view).toEqual({ display: "diff", format: "split", md: "source" })
+    expect(groupOf(l).tabs).toEqual([
+      { kind: "file", path: "a.md" },
+      { kind: "file", path: "b.md" },
+    ])
+    // 行を指定して開くと、グループの表示を変える
     l = openTab(l, { kind: "file", path: "a.md", line: 3, display: "file", md: "source" })
-    expect(tabOf(l)).toEqual({ kind: "file", path: "a.md", line: 3, display: "file", format: "split", md: "source" })
+    expect(groupOf(l).view).toEqual({ display: "file", format: "split", md: "source" })
+    // undefined は既定に戻す
+    l = openTab(l, { kind: "file", path: "a.md", history: true, rev: "abc1234" })
+    l = openTab(l, { kind: "file", path: "b.md", format: undefined })
+    expect(groupOf(l).view).toEqual({ display: "file", md: "source", history: true })
+    // rev は開き直しても引き継ぎ、表示を指定したらやめる
+    l = openTab(l, { kind: "file", path: "a.md" })
+    expect(groupOf(l).tabs[0]).toEqual({ kind: "file", path: "a.md", rev: "abc1234" })
+    l = openTab(l, { kind: "file", path: "a.md", display: "diff" })
+    expect(groupOf(l).tabs[0]).toEqual({ kind: "file", path: "a.md" })
+  })
+  it("分割して作ったグループは元の表示を引き継ぎ、移したタブは移した先に従う", () => {
+    let l = openTab(createLayout(), { kind: "file", path: "a.md", md: "source" })
+    l = openTab(l, { kind: "file", path: "b.md" })
+    const first = l.activeGroupId
+    l = moveTab(l, { kind: "file", path: "b.md" }, first, first, "right")
+    expect(groupOf(l).view).toEqual({ md: "source" })
+    l = openTab(l, { kind: "file", path: "b.md", md: "preview" })
+    expect(findGroup(l.root, first)!.view).toEqual({ md: "source" })
+    l = moveTab(l, { kind: "file", path: "a.md" }, first, l.activeGroupId, "center")
+    expect(groups(l.root)).toHaveLength(1)
+    expect(groupOf(l).view).toEqual({ md: "preview" })
   })
 })
 

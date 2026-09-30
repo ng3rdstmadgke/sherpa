@@ -177,7 +177,7 @@ function GroupView({ group, ctx }: { group: Group; ctx: Ctx }) {
         }}
         onDrop={(e) => drop(e, zoneFromEvent(e))}
       >
-        {active ? <DocumentView key={tabKey(active)} tab={active} actions={ctx.actionsFor(group.id)} /> : ctx.empty}
+        {active ? <DocumentView key={tabKey(active)} tab={active} view={group.view ?? {}} actions={ctx.actionsFor(group.id)} /> : ctx.empty}
         {find && active && (
           <FindBar
             scope={bodyRef}

@@ -137,7 +137,7 @@ path/to/file.md     [プレビュー|ソース] [Unified|Split] [差分|全体] 
   - 変更のない部分は省略する。Unified / Split と、Markdown のプレビュー / ソースはそのまま効く
   - 選んでいる間は `差分|全体` のどちらも選ばない。どちらかを押すと、履歴の選択をやめてその表示にする
 - Untracked のファイルでは「History」を押せない (コミットがないため)
-- 一覧の幅は境界線のドラッグで変えられる (`history-panel-layout` に保存。タブに関係なく 1 つ)。開いているかと選んだものはタブごとに保存する
+- 一覧の幅は境界線のドラッグで変えられる (`history-panel-layout` に保存。タブに関係なく 1 つ)。一覧を開いているかはグループの中のタブで共有し ([files.md](files.md) §5)、選んだコミットはタブごとに持つ
 - 一覧は、git の変化の通知で読み直す ([live-reload.md](live-reload.md))
 
 ## 9. Untracked の扱い

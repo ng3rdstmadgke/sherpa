@@ -18,12 +18,12 @@ import { DiffViewer } from "@/components/viewers/diff-viewer"
 import { ZoomView } from "@/components/viewers/zoom-dialog"
 import { diffSides, withinHighlightLimit } from "@/lib/diff"
 import { DiffStat, dirname, FileIcon, resolveRelative, statusColor } from "./common"
-import { baseLabel, type DiffBase, type DocTab, type DocView } from "./editor-layout"
+import { baseLabel, type DiffBase, type DocTab, type DocView, type GroupView } from "./editor-layout"
 import { HistoryList, UNCOMMITTED, useHistory } from "./history-list"
 
 export type DocumentActions = {
   openFile: (path: string) => void
-  // 表示中のタブの状態を書き換える (差分 / 全体、Unified / Split、プレビュー / ソースの切り替え)
+  // 表示中のタブを書き換える。DocView を付けると、グループの表示 (差分 / 全体、Unified / Split、プレビュー / ソース、History) も変える
   updateTab: (tab: DocTab) => void
   compareBase: DiffBase
   hasDiff: (path: string) => boolean
@@ -106,10 +106,11 @@ function Notice({ children, error }: { children: React.ReactNode; error?: boolea
   )
 }
 
-export function DocumentView({ tab, actions }: { tab: DocTab; actions: DocumentActions }) {
+// view: グループの表示 (パスのバーの切り替え。グループの中のタブで共有する)
+export function DocumentView({ tab, view, actions }: { tab: DocTab; view: GroupView; actions: DocumentActions }) {
   if (tab.kind === "commit") return <CommitView hash={tab.hash} />
-  if (tab.kind === "diff") return <DiffDocument tab={tab} actions={actions} />
-  return <FileDocument tab={tab} actions={actions} />
+  if (tab.kind === "diff") return <DiffDocument tab={tab} view={view} actions={actions} />
+  return <FileDocument tab={tab} view={view} actions={actions} />
 }
 
 // Markdown の画像の相対パスを、Markdown のあるディレクトリを基準にサーバーの raw の URL にする
@@ -303,20 +304,20 @@ type DiffTab = Extract<DocTab, { kind: "diff" }>
 // ファイルタブと差分タブの本文。パスのバーの右に [プレビュー|ソース] [Unified|Split] [差分|全体] [History] を並べる。
 // プレビュー / ソースは Markdown (と、全体のときの HTML) だけ、Unified / Split は差分のときだけ、差分 / 全体は差分があるときか履歴で選んでいるときだけ出す。
 // diff: 差分の取り方 (ファイルタブは比較対象との差分をファイル全体に重ねる。差分がなければ undefined)
-function DocumentPane(props: { tab: FileTab | DiffTab; actions: DocumentActions; diff?: { base: DiffBase; oldPath?: string; expandAll?: boolean } }) {
-  const { tab, actions, diff } = props
+function DocumentPane(props: { tab: FileTab | DiffTab; view: GroupView; actions: DocumentActions; diff?: { base: DiffBase; oldPath?: string; expandAll?: boolean } }) {
+  const { tab, view, actions, diff } = props
   const { path } = tab
   const isMd = path.endsWith(".md")
   // HTML は「全体」のときだけプレビューできる (プレビューの差分は Markdown だけ)
   const canPreview = isMd || isHtml(path)
   const line = tab.kind === "file" ? tab.line : undefined
-  const format = tab.format ?? "unified"
+  const format = view.format ?? "unified"
   const update = (v: DocView) => actions.updateTab({ ...tab, ...v })
 
   // 履歴 (左の一覧)。Untracked のファイルにはコミットがないので出さない
   const own = useChanges().data?.find((c) => c.path === path)
   const untracked = own?.status === "U"
-  const historyOpen = !!tab.history && !untracked
+  const historyOpen = !!view.history && !untracked
   const history = useHistory(path, historyOpen)
   const rev = historyOpen ? tab.rev : undefined
   const revCommit = rev && rev !== UNCOMMITTED ? history.data?.commits.find((c) => c.hash === rev) : undefined
@@ -333,10 +334,10 @@ function DocumentPane(props: { tab: FileTab | DiffTab; actions: DocumentActions;
           }
         : undefined
 
-  const display: Display = diff ? (tab.display ?? (tab.kind === "diff" ? "diff" : "file")) : "file"
+  const display: Display = diff ? (view.display ?? (tab.kind === "diff" ? "diff" : "file")) : "file"
   const showDiff = !!rev || display === "diff"
   // 検索結果から行を指定して開いたときはソースを表示する
-  const md: MdMode = canPreview ? (tab.md ?? (line ? "source" : "preview")) : "source"
+  const md: MdMode = canPreview ? (view.md ?? (line ? "source" : "preview")) : "source"
   const label = rev ? revDiff?.label : diff && display === "diff" ? baseLabel(diff.base) : undefined
 
   const body = rev ? (
@@ -430,14 +431,14 @@ function HistorySplit({ list, children }: { list: React.ReactNode; children: Rea
 }
 
 // ファイルタブ。比較対象との差分があれば「差分」で、ファイル全体に差分を重ねて表示する (既定は「全体」)
-function FileDocument({ tab, actions }: { tab: FileTab; actions: DocumentActions }) {
+function FileDocument({ tab, view, actions }: { tab: FileTab; view: GroupView; actions: DocumentActions }) {
   const diff = actions.hasDiff(tab.path) ? { base: actions.compareBase, expandAll: true } : undefined
-  return <DocumentPane tab={tab} actions={actions} diff={diff} />
+  return <DocumentPane tab={tab} view={view} actions={actions} diff={diff} />
 }
 
 // 差分タブ。変更のない部分は省略する (既定は「差分」)
-function DiffDocument({ tab, actions }: { tab: DiffTab; actions: DocumentActions }) {
-  return <DocumentPane tab={tab} actions={actions} diff={{ base: tab.base, oldPath: tab.oldPath }} />
+function DiffDocument({ tab, view, actions }: { tab: DiffTab; view: GroupView; actions: DocumentActions }) {
+  return <DocumentPane tab={tab} view={view} actions={actions} diff={{ base: tab.base, oldPath: tab.oldPath }} />
 }
 
 function CommitView({ hash }: { hash: string }) {
