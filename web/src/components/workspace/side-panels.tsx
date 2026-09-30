@@ -188,7 +188,9 @@ function useToggleSet(initial: string[] = []) {
       else n.add(p)
       return n
     })
-  return [set, toggle] as const
+  const add = (ps: string[]) =>
+    setSet((prev) => (ps.every((p) => prev.has(p)) ? prev : new Set([...prev, ...ps])))
+  return [set, toggle, add] as const
 }
 
 // ---------------------------------------------------------------------------
@@ -227,8 +229,23 @@ export function FilesPanel({
   const inputRef = useRef<HTMLInputElement>(null)
   // エクスプローラの絞り込み: 変更のみ / .md のみ / gitignore (無視されたファイルも表示)
   const [filters, setFilters] = useState<string[]>([])
-  const [expanded, toggleExpanded] = useToggleSet()
+  const [expanded, toggleExpanded, expand] = useToggleSet()
   const [specCollapsed, toggleSpecCollapsed] = useToggleSet()
+  const explorerRef = useRef<HTMLDivElement>(null)
+
+  // 開いているファイルが変わったら、エクスプローラで親のディレクトリを開き、その行が見えるまでスクロールする
+  const [revealed, setRevealed] = useState<string | undefined>()
+  if (activePath !== revealed) {
+    setRevealed(activePath)
+    if (activePath) expand(activePath.split("/").slice(0, -1).map((_, i, a) => a.slice(0, i + 1).join("/")))
+  }
+  useEffect(() => {
+    if (!activePath) return
+    const id = requestAnimationFrame(() =>
+      explorerRef.current?.querySelector(`[data-tree-path="${CSS.escape(activePath)}"]`)?.scrollIntoView({ block: "nearest" }),
+    )
+    return () => cancelAnimationFrame(id)
+  }, [activePath])
 
   useEffect(() => {
     if (focusSearchSignal > 0) {
@@ -379,7 +396,7 @@ export function FilesPanel({
             <p className="px-3 pb-1 text-xs text-amber-700 dark:text-amber-400">ファイルが多いため一部だけ表示しています。除外パターンを追加してください</p>
           )}
           <TreeContextMenu>
-            <div className="px-1">
+            <div ref={explorerRef} className="px-1">
               <Tree
                 nodes={explorerNodes}
                 depth={0}
@@ -452,7 +469,8 @@ function Tree(props: {
               onDragStart={dragFile(n.path)}
               className={cn(
                 "flex w-full items-center gap-1.5 rounded py-0.5 pr-2 text-left text-sm hover:bg-accent",
-                activePath === n.path && "bg-accent",
+                // 開いているファイル (ホバーと見分けられる色にする)
+                activePath === n.path && "bg-sky-500/20 hover:bg-sky-500/25",
                 dim && "opacity-50",
               )}
               style={{ paddingLeft: depth * 12 + 22 }}
