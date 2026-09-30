@@ -39,6 +39,7 @@
 | `GET …/wt/compare?branch=&includeUncommitted=0\|1` | | `CompareResult` |
 | `GET …/wt/diff?path=&oldPath=&base=` | `base` は `uncommitted` / `branch:<b>` / `branch-wt:<b>` / `commit:<hash>` | `DiffResult` |
 | `GET …/wt/commits/:hash` | | `Commit` (`files` あり) |
+| `GET …/wt/history?path=&max=` | `max` は既定 200、5,000 まで | `FileHistory` (`{ commits: (Commit & { change: Change })[], truncated }`。[git.md](git.md) §8) |
 | `GET …/wt/search/content?q=&caseSensitive=&regex=&include=&exclude=&ignored=` | 真偽値は `0` / `1` | `ContentSearchResult` (`{ hits; truncated }`) |
 | `GET …/wt/search/files?…(同上)` | | `NameSearchResult` (`{ files: { path, ignored }[]; truncated }`) |
 

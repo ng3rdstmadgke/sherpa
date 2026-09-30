@@ -134,7 +134,7 @@
 
 ## 8. 画面の状態の保存と復元
 
-- 保存するもの (キー): 開いているタブ (`instances`)、選択中のタブ (`activeId`)、設定タブ (`settingsOpen`)、テーマ (`theme`)、タブごとのメニュー・エディタのレイアウト・比較対象 (`ws:<タブの id>`)、サイドパネルの配分 (`files-panel-layout` / `git-panel-layout`)
+- 保存するもの (キー): 開いているタブ (`instances`)、選択中のタブ (`activeId`)、設定タブ (`settingsOpen`)、テーマ (`theme`)、タブごとのメニュー・エディタのレイアウト・比較対象 (`ws:<タブの id>`)、サイドパネルの配分 (`files-panel-layout` / `git-panel-layout`)、ファイルの履歴の幅 (`history-panel-layout`)
 - SPEC 欄の入力は UI の状態ではなく worktree のデータとして保存する ([storage.md](storage.md))
 - 仕組み (`web/src/lib/persist.ts`)
   - `usePersistentState` は最初の描画で値を同期的に読む。`page.tsx` がサーバーで `ui_state` を全部読んで渡し、persist.ts がメモリに持つ

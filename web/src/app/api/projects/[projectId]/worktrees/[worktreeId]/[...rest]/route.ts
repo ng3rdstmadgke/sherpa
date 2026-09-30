@@ -1,6 +1,6 @@
 import { ApiError, notFound, readJson, route } from "@/server/errors"
 import { listChildren, listDir, listSpec, listTree, previewFile, rawFile, readContent } from "@/server/files"
-import { changes, commitDetail, compare, fileDiff, listBranches } from "@/server/git"
+import { changes, commitDetail, compare, fileDiff, fileHistory, listBranches } from "@/server/git"
 import { checkRel } from "@/server/paths"
 import { getCtx, setSpecPaths } from "@/server/projects"
 import { checkPreviewToken, previewToken } from "@/server/preview"
@@ -55,6 +55,8 @@ export const GET = route<Ctx>(async (req, { params }) => {
       const oldPath = q.get("oldPath")
       return fileDiff(ctx, checkRel(q.get("path")), oldPath ? checkRel(oldPath) : null, q.get("base") ?? "uncommitted")
     }
+    case "history":
+      return fileHistory(ctx, checkRel(q.get("path")), Number(q.get("max")) || undefined)
     case "search/content":
       return searchContent(ctx, searchParams(q))
     case "search/files":

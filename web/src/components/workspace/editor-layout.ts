@@ -6,8 +6,9 @@ export type DiffBase = { type: "uncommitted" } | { type: "branch"; branch: strin
 
 // ファイルタブと差分タブの本文の表示 (タブごとに保存する。なし = 既定)
 // display: 差分か全体か (既定はファイルタブは全体、差分タブは差分) / format: 差分の形式 (既定は unified) /
-// md: Markdown をプレビューとソースのどちらで見るか (既定はプレビュー。行を指定して開いたときはソース)
-export type DocView = { display?: "diff" | "file"; format?: "unified" | "split"; md?: "preview" | "source" }
+// md: Markdown をプレビューとソースのどちらで見るか (既定はプレビュー。行を指定して開いたときはソース) /
+// history: 左にファイルの履歴を出すか / rev: 履歴で選んだもの (コミットのハッシュか "uncommitted")。選んでいる間は、本文をその差分にする
+export type DocView = { display?: "diff" | "file"; format?: "unified" | "split"; md?: "preview" | "source"; history?: boolean; rev?: string }
 
 export type DocTab =
   | ({ kind: "file"; path: string; line?: number } & DocView)
@@ -61,6 +62,9 @@ function keepView(old: DocTab, tab: DocTab): DocTab {
   if (old.display) view.display = old.display
   if (old.format) view.format = old.format
   if (old.md) view.md = old.md
+  if (old.history) view.history = old.history
+  // 表示 (差分 / 全体) を指定して開き直したときは、履歴で選んだものをやめる
+  if (old.rev && !tab.display) view.rev = old.rev
   return { ...view, ...tab }
 }
 

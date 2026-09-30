@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { byteToUtf16, parseForEachRef, parseLog, parseRawNumstat, parseRgLine, parseUnifiedDiff } from "@/server/git-parse"
+import { byteToUtf16, parseFileLog, parseForEachRef, parseLog, parseRawNumstat, parseRgLine, parseUnifiedDiff } from "@/server/git-parse"
 import { checkRel, isInside } from "@/server/paths"
 import { mapPath, parseGitFile } from "@/server/worktrees"
 import { buildTree, excludePathspecs } from "@/server/files"
@@ -59,6 +59,21 @@ describe("parseForEachRef", () => {
       { name: "main", ref: "refs/heads/main", remote: false, date: "2026-09-01T00:00:00+09:00" },
       { name: "upstream/main", ref: "refs/remotes/upstream/main", remote: true, date: "2026-09-02T00:00:00+09:00" },
     ])
+  })
+})
+
+describe("parseFileLog", () => {
+  it("-z の --raw --numstat から、そのファイルの変更 (名前の変更を含む) を取る", () => {
+    const head = (h: string, subject: string) => `\x1e${h}\x1f${h.slice(0, 7)}\x1f${"0".repeat(40)}\x1fClaude\x1f2026-09-27T10:00:00+09:00\x1f${subject}\x1f\x1d\0\n`
+    const out =
+      head("a".repeat(40), "変更") +
+      [":100644 100644 aaa bbb M", "docs/new name.md", "2\t1\tdocs/new name.md", ""].join("\0") +
+      head("b".repeat(40), "名前を変える") +
+      [":100644 100644 ccc ddd R090", "docs/old.md", "docs/new name.md", "1\t1\t", "docs/old.md", "docs/new name.md", ""].join("\0")
+    const c = parseFileLog(out)
+    expect(c.map((x) => x.message)).toEqual(["変更", "名前を変える"])
+    expect(c[0].change).toEqual({ path: "docs/new name.md", status: "M", additions: 2, deletions: 1 })
+    expect(c[1].change).toEqual({ path: "docs/new name.md", oldPath: "docs/old.md", status: "R", additions: 1, deletions: 1 })
   })
 })
 

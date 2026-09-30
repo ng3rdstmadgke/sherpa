@@ -324,6 +324,21 @@ describe("git", () => {
     expect(await code(S.git.commitDetail(c, "abcdef12"))).toBe("NOT_FOUND:404")
   })
 
+  it("1 ファイルの履歴は新しい順で、そのコミットでの変更を持つ", async () => {
+    const c = await ctx()
+    const h = await S.git.fileHistory(c, "README.md")
+    expect(h.truncated).toBe(false)
+    expect(h.commits.map((x) => x.message)).toEqual(["main: README", "init"])
+    expect(h.commits[0].change).toEqual({ path: "README.md", status: "M", additions: 1, deletions: 0 })
+    expect(h.commits[1].change).toMatchObject({ path: "README.md", status: "A", additions: 3 })
+    const one = await S.git.fileHistory(c, "README.md", 1)
+    expect([one.commits.length, one.truncated]).toEqual([1, true])
+    // コミットのないファイル・リポジトリは空
+    expect(await S.git.fileHistory(c, "notes.txt")).toEqual({ commits: [], truncated: false })
+    const nc = await S.projects.makeCtx({ ...row(), id: "nc", path: fx.noCommit, pathMappings: [] }, "main", DEFAULT_EXCLUDES)
+    expect(await S.git.fileHistory(nc, "a.txt")).toEqual({ commits: [], truncated: false })
+  })
+
   it("エラー: ブランチがない、共通の祖先がない", async () => {
     const c = await ctx()
     expect(await code(S.git.compare(c, "nope", true))).toBe("BRANCH_NOT_FOUND:404")

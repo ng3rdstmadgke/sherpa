@@ -100,6 +100,12 @@ export type Commit = {
   files?: Change[] // 詳細 (GET …/commits/:hash) だけ
 }
 
+// 1 ファイルの履歴の 1 件。change はそのコミットでのそのファイルの変更 (名前を変えたときは oldPath がある)
+export type FileCommit = Commit & { change: Change }
+export type FileHistory = { commits: FileCommit[]; truncated: boolean }
+// 1 ファイルの履歴を一度に読む件数の上限
+export const MAX_FILE_HISTORY = 5000
+
 export type Branch = { name: string; ref: string; remote: boolean; date: string }
 
 export type SearchHit = { path: string; line: number; text: string; matches: Match[] }

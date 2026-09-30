@@ -12,7 +12,7 @@ import { matchesAny } from "@/lib/glob"
 import type { FileNode } from "@/lib/types"
 import { gitText } from "@/server/exec"
 import { listTree, readContent } from "@/server/files"
-import { autoCompareBranch, changes, commitDetail, compare, fileDiff, listBranches } from "@/server/git"
+import { autoCompareBranch, changes, commitDetail, compare, fileDiff, fileHistory, listBranches } from "@/server/git"
 import { makeCtx, type ProjectRow, type WtCtx } from "@/server/projects"
 import { searchContent, searchNames } from "@/server/search"
 import { detectMappings, discoverWorktrees, parseGitFile } from "@/server/worktrees"
@@ -185,6 +185,7 @@ async function checkWorktree(repo: string, ctx: WtCtx, compareBranch: string | n
   )
 
   let firstText = ""
+  let firstPath = ""
   await check(repo, wt, "file", async () => {
     const tracked = (await gitText(ctx, ["ls-files", "-z"])).split("\0").filter(Boolean)
     const pick = ["README.md", "CLAUDE.md"].find((p) => tracked.includes(p)) ?? tracked.find((p) => /\.(md|ts|tf|py|ya?ml|json|sh)$/.test(p))
@@ -194,7 +195,20 @@ async function checkWorktree(repo: string, ctx: WtCtx, compareBranch: string | n
     const fsText = await readFile(path.join(ctx.root, pick), "utf8")
     assert(c.content === fsText, "内容が fs と違う")
     firstText = fsText
+    firstPath = pick
     return `${pick} (${c.size} B)`
+  })
+
+  await check(repo, wt, "file-history", async () => {
+    const h = await fileHistory(ctx, firstPath)
+    const want = (await gitText(ctx, ["log", "--follow", "--format=%H", "--max-count=200", "HEAD", "--", `:(literal)${firstPath}`])).split("\n").filter(Boolean)
+    assert(h.commits.map((c) => c.hash).join() === want.join(), `履歴が git log と違う (${h.commits.length} / git ${want.length})`)
+    const top = h.commits[0]
+    if (top) {
+      const d = await fileDiff(ctx, top.change.path, top.change.oldPath ?? null, `commit:${top.hash}`)
+      if (d.kind === "text") assert(d.additions === top.change.additions && d.deletions === top.change.deletions, "最新のコミットの差分の行数が違う")
+    }
+    return `${firstPath} ${h.commits.length} 件${h.truncated ? " (truncated)" : ""}`
   })
 
   await check(

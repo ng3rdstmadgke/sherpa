@@ -14,6 +14,7 @@ import type {
   DiffResult,
   ErrorCode,
   FileContent,
+  FileHistory,
   FileNode,
   Health,
   NameSearchResult,
@@ -206,6 +207,17 @@ export function useDiff(path: string, oldPath: string | undefined, base: DiffBas
 export function useCommit(hash: string) {
   const wt = useWt()
   return useQuery({ queryKey: wtKey(wt, "commit", hash), queryFn: () => api<Commit>(wtUrl(wt, "commits/" + hash)), staleTime: Infinity })
+}
+
+// 1 ファイルの履歴 (max 件まで。超えたら truncated)
+export function useFileHistory(path: string, max: number, enabled: boolean) {
+  const wt = useWt()
+  return useQuery({
+    queryKey: wtKey(wt, "history", path, max),
+    queryFn: () => api<FileHistory>(wtUrl(wt, "history", { path, max })),
+    enabled,
+    placeholderData: keepPreviousData,
+  })
 }
 
 export type SearchRequest = SearchOptions & { q: string; include: string; exclude: string; ignored: boolean }

@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from "react"
 import { cn } from "cn"
-import { AlertTriangle, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Copy } from "lucide-react"
+import { AlertTriangle, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Copy, History } from "lucide-react"
+import type { Layout } from "react-resizable-panels"
 import { Button } from "@/components/ui/button"
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
+import { Toggle } from "@/components/ui/toggle"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type { Change, DiffLine, DiffResult, DiffSide, FileContent } from "@/lib/types"
-import { errorMessage, previewUrl, rawUrl, useCommit, useDiff, useFile, usePreviewToken, useWt } from "@/lib/api"
+import { errorMessage, previewUrl, rawUrl, useChanges, useCommit, useDiff, useFile, usePreviewToken, useWt } from "@/lib/api"
+import { usePersistentState } from "@/lib/persist"
 import { formatSize, relTime } from "@/lib/format"
 import { CodeViewer, langFromPath } from "@/components/viewers/code-viewer"
 import { MarkdownDiffViewer, MarkdownViewer } from "@/components/viewers/markdown-viewer"
@@ -15,6 +19,7 @@ import { ZoomView } from "@/components/viewers/zoom-dialog"
 import { diffSides, withinHighlightLimit } from "@/lib/diff"
 import { DiffStat, dirname, FileIcon, resolveRelative, statusColor } from "./common"
 import { baseLabel, type DiffBase, type DocTab, type DocView } from "./editor-layout"
+import { HistoryList, UNCOMMITTED, useHistory } from "./history-list"
 
 export type DocumentActions = {
   openFile: (path: string) => void
@@ -295,8 +300,8 @@ function LoadedDiff(props: {
 type FileTab = Extract<DocTab, { kind: "file" }>
 type DiffTab = Extract<DocTab, { kind: "diff" }>
 
-// ファイルタブと差分タブの本文。パスのバーの右に [プレビュー|ソース] [Unified|Split] [差分|全体] を並べる。
-// プレビュー / ソースは Markdown (と、全体のときの HTML) だけ、Unified / Split は差分のときだけ、差分 / 全体は差分があるときだけ出す。
+// ファイルタブと差分タブの本文。パスのバーの右に [プレビュー|ソース] [Unified|Split] [差分|全体] [History] を並べる。
+// プレビュー / ソースは Markdown (と、全体のときの HTML) だけ、Unified / Split は差分のときだけ、差分 / 全体は差分があるときか履歴で選んでいるときだけ出す。
 // diff: 差分の取り方 (ファイルタブは比較対象との差分をファイル全体に重ねる。差分がなければ undefined)
 function DocumentPane(props: { tab: FileTab | DiffTab; actions: DocumentActions; diff?: { base: DiffBase; oldPath?: string; expandAll?: boolean } }) {
   const { tab, actions, diff } = props
@@ -305,42 +310,122 @@ function DocumentPane(props: { tab: FileTab | DiffTab; actions: DocumentActions;
   // HTML は「全体」のときだけプレビューできる (プレビューの差分は Markdown だけ)
   const canPreview = isMd || isHtml(path)
   const line = tab.kind === "file" ? tab.line : undefined
-  const display: Display = diff ? (tab.display ?? (tab.kind === "diff" ? "diff" : "file")) : "file"
   const format = tab.format ?? "unified"
+  const update = (v: DocView) => actions.updateTab({ ...tab, ...v })
+
+  // 履歴 (左の一覧)。Untracked のファイルにはコミットがないので出さない
+  const own = useChanges().data?.find((c) => c.path === path)
+  const untracked = own?.status === "U"
+  const historyOpen = !!tab.history && !untracked
+  const history = useHistory(path, historyOpen)
+  const rev = historyOpen ? tab.rev : undefined
+  const revCommit = rev && rev !== UNCOMMITTED ? history.data?.commits.find((c) => c.hash === rev) : undefined
+  // 履歴で選んだものの差分。コミットはその親との差分 (名前を変えたコミットは元のパスとの差分)
+  const revDiff =
+    rev === UNCOMMITTED && own
+      ? { path, oldPath: own.oldPath, base: { type: "uncommitted" } as const, label: baseLabel({ type: "uncommitted" }) }
+      : revCommit
+        ? {
+            path: revCommit.change.path,
+            oldPath: revCommit.change.oldPath,
+            base: { type: "commit", hash: revCommit.hash } as const,
+            label: revCommit.parents.length ? `${revCommit.shortHash}^..${revCommit.shortHash}` : revCommit.shortHash,
+          }
+        : undefined
+
+  const display: Display = diff ? (tab.display ?? (tab.kind === "diff" ? "diff" : "file")) : "file"
+  const showDiff = !!rev || display === "diff"
   // 検索結果から行を指定して開いたときはソースを表示する
   const md: MdMode = canPreview ? (tab.md ?? (line ? "source" : "preview")) : "source"
-  const update = (v: DocView) => actions.updateTab({ ...tab, ...v })
+  const label = rev ? revDiff?.label : diff && display === "diff" ? baseLabel(diff.base) : undefined
+
+  const body = rev ? (
+    revDiff ? (
+      <LoadedDiff path={revDiff.path} oldPath={revDiff.oldPath} base={revDiff.base} format={format} preview={isMd && md === "preview"} actions={actions} />
+    ) : (
+      <Notice>{history.isPending ? "読み込み中…" : "選んだものが履歴にありません"}</Notice>
+    )
+  ) : diff && display === "diff" ? (
+    <LoadedDiff path={path} oldPath={diff.oldPath} base={diff.base} format={format} preview={isMd && md === "preview"} expandAll={diff.expandAll} actions={actions} />
+  ) : (
+    <FileBody path={path} line={line} mdMode={md} actions={actions} />
+  )
 
   return (
     <div className="flex h-full flex-col">
       <Toolbar>
         <Breadcrumb path={path} />
-        {diff && display === "diff" && (
-          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] whitespace-nowrap text-muted-foreground">{baseLabel(diff.base)}</span>
-        )}
+        {label && <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] whitespace-nowrap text-muted-foreground">{label}</span>}
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          {(isMd || (canPreview && display === "file")) && <Segmented value={md} onChange={(m) => update({ md: m })} options={MD_OPTIONS} />}
-          {display === "diff" && <Segmented value={format} onChange={(f) => update({ format: f })} options={FORMAT_OPTIONS} />}
-          {diff && (
+          {(isMd || (canPreview && !showDiff)) && <Segmented value={md} onChange={(m) => update({ md: m })} options={MD_OPTIONS} />}
+          {showDiff && <Segmented value={format} onChange={(f) => update({ format: f })} options={FORMAT_OPTIONS} />}
+          {(diff || rev) && (
+            // 履歴で選んでいる間はどちらも選ばない。押すと履歴の選択をやめて、その表示にする
             <Segmented
-              value={display}
-              onChange={(d) => update({ display: d })}
+              value={rev ? ("" as Display) : display}
+              onChange={(d) => update({ display: d, rev: undefined })}
               options={[
-                { value: "diff", label: "差分", title: `${baseLabel(diff.base)} との差分を表示` },
-                { value: "file", label: "全体", title: "ファイル全体を表示" },
+                ...(diff ? [{ value: "diff" as const, label: "差分", title: `${baseLabel(diff.base)} との差分を表示` }] : []),
+                { value: "file" as const, label: "全体", title: "ファイル全体を表示" },
               ]}
             />
           )}
+          <Toggle
+            variant="outline"
+            size="sm"
+            pressed={historyOpen}
+            disabled={untracked}
+            onPressedChange={(on) => update({ history: on || undefined, rev: undefined })}
+            title={untracked ? "Untracked のファイルには履歴がありません" : "このファイルの変更の履歴"}
+            className="h-6 min-w-0 px-2 text-xs text-muted-foreground aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary/90 aria-pressed:hover:text-primary-foreground"
+          >
+            <History className="size-3.5" />
+            History
+          </Toggle>
         </div>
       </Toolbar>
-      <div data-find-root className="min-h-0 flex-1 overflow-auto">
-        {diff && display === "diff" ? (
-          <LoadedDiff path={path} oldPath={diff.oldPath} base={diff.base} format={format} preview={isMd && md === "preview"} expandAll={diff.expandAll} actions={actions} />
-        ) : (
-          <FileBody path={path} line={line} mdMode={md} actions={actions} />
-        )}
-      </div>
+      {historyOpen ? (
+        <HistorySplit
+          list={
+            <HistoryList
+              path={path}
+              uncommitted={own}
+              commits={history.data?.commits}
+              loading={history.isFetching}
+              error={history.error}
+              truncated={!!history.data?.truncated}
+              onMore={history.onMore}
+              selected={rev}
+              onSelect={(r) => update({ rev: r })}
+            />
+          }
+        >
+          {body}
+        </HistorySplit>
+      ) : (
+        <div data-find-root className="min-h-0 flex-1 overflow-auto">
+          {body}
+        </div>
+      )}
     </div>
+  )
+}
+
+// 左に履歴、右に本文。履歴の幅はドラッグで変えられ、保存する (タブに関係なく 1 つ)
+function HistorySplit({ list, children }: { list: React.ReactNode; children: React.ReactNode }) {
+  const [layout, setLayout] = usePersistentState<Layout | null>("history-panel-layout", () => null)
+  return (
+    <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1" defaultLayout={layout ?? undefined} onLayoutChanged={setLayout}>
+      <ResizablePanel id="history" defaultSize="260px" minSize="160px" maxSize="60%">
+        {list}
+      </ResizablePanel>
+      <ResizableHandle />
+      <ResizablePanel id="content" minSize="30%">
+        <div data-find-root className="h-full overflow-auto">
+          {children}
+        </div>
+      </ResizablePanel>
+    </ResizablePanelGroup>
   )
 }
 

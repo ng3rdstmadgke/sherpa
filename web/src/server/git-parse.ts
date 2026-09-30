@@ -1,4 +1,4 @@
-import type { Branch, Change, ChangeStatus, Commit, DiffLine, Match, SearchHit } from "@/lib/types"
+import type { Branch, Change, ChangeStatus, Commit, DiffLine, FileCommit, Match, SearchHit } from "@/lib/types"
 
 // git / rg の出力のパース。純粋な関数 (単体テストの対象)
 
@@ -73,28 +73,35 @@ export function parseForEachRef(out: string): Branch[] {
 
 export const LOG_FORMAT = "%x1e%H%x1f%h%x1f%P%x1f%an%x1f%aI%x1f%s%x1f%b%x1d"
 
-// git log --format=LOG_FORMAT --shortstat の出力を Commit[] にする
-export function parseLog(out: string): Commit[] {
-  const commits: Commit[] = []
+// git log --format=LOG_FORMAT の 1 件を、コミットと、その後ろの出力 (--shortstat や --raw など) に分ける
+function splitLog(out: string): { commit: Omit<Commit, "fileCount">; tail: string }[] {
+  const recs: { commit: Omit<Commit, "fileCount">; tail: string }[] = []
   for (const rec of out.split("\x1e")) {
     if (!rec.trim()) continue
     const end = rec.indexOf("\x1d")
     const head = end >= 0 ? rec.slice(0, end) : rec
     const tail = end >= 0 ? rec.slice(end + 1) : ""
     const [hash, shortHash, parents, author, date, message, body] = head.split("\x1f")
-    const files = /(\d+) files? changed/.exec(tail)
-    commits.push({
-      hash,
-      shortHash,
-      parents: parents ? parents.split(" ") : [],
-      author,
-      date,
-      message,
-      body: (body ?? "").trim(),
-      fileCount: files ? Number(files[1]) : 0,
-    })
+    recs.push({ commit: { hash, shortHash, parents: parents ? parents.split(" ") : [], author, date, message, body: (body ?? "").trim() }, tail })
   }
-  return commits
+  return recs
+}
+
+// git log --format=LOG_FORMAT --shortstat の出力を Commit[] にする
+export function parseLog(out: string): Commit[] {
+  return splitLog(out).map(({ commit, tail }) => {
+    const files = /(\d+) files? changed/.exec(tail)
+    return { ...commit, fileCount: files ? Number(files[1]) : 0 }
+  })
+}
+
+// 1 ファイルの履歴 (git log --follow --format=LOG_FORMAT --raw --numstat -z -- <path>) を、コミットとそのファイルの変更にする
+export function parseFileLog(out: string): FileCommit[] {
+  return splitLog(out).flatMap(({ commit, tail }) => {
+    // -z のときは、書式の後ろに \0 と改行が入ってから --raw が続く
+    const [change] = parseRawNumstat(tail.replace(/^[\0\n]+/, ""))
+    return change ? [{ ...commit, fileCount: 1, change }] : []
+  })
 }
 
 // unified diff (-U<大きな値>) を DiffLine[] にする。バイナリなら binary

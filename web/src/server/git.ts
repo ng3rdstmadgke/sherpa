@@ -1,10 +1,10 @@
 import { lstat, readFile, stat } from "node:fs/promises"
 import path from "node:path"
 import { matchesAny } from "@/lib/glob"
-import { AUTO_COMPARE_BRANCHES, type Branch, type Change, type Commit, type CompareResult, type DiffLine, type DiffResult } from "@/lib/types"
+import { AUTO_COMPARE_BRANCHES, MAX_FILE_HISTORY, type Branch, type Change, type Commit, type CompareResult, type DiffLine, type DiffResult, type FileHistory } from "@/lib/types"
 import { ApiError } from "./errors"
 import { git, gitText, type GitCtx } from "./exec"
-import { LOG_FORMAT, parseForEachRef, parseLog, parseRawNumstat, parseUnifiedDiff } from "./git-parse"
+import { LOG_FORMAT, parseFileLog, parseForEachRef, parseLog, parseRawNumstat, parseUnifiedDiff } from "./git-parse"
 import type { WtCtx } from "./projects"
 
 // 機能ごとの git のコマンド (docs/architecture/git.md)
@@ -159,6 +159,18 @@ export async function commitDetail(ctx: GitCtx, hash: string): Promise<Commit> {
   const parent = c.parents[0] ?? (await emptyTree(ctx))
   const files = (await diffSummary(ctx, parent, full)).sort(byPath)
   return { ...c, files, fileCount: files.length }
+}
+
+// 1 ファイルの履歴 (HEAD から。名前の変更もたどる)。max 件を超えたら truncated
+export async function fileHistory(ctx: GitCtx, p: string, max = 200): Promise<FileHistory> {
+  const n = Math.min(Math.max(1, Math.floor(max) || 1), MAX_FILE_HISTORY)
+  // マージコミットは出さない (--follow は差分でファイルを追うので、マージにも差分を出すと、取り込んだブランチの変更がマージにも重なって出る)
+  const args = ["log", ...DIFF_OPTS, "--follow", "-M", `--format=${LOG_FORMAT}`, "--raw", "--numstat", "-z"]
+  // コミットがまだない (HEAD がない) ときは 128
+  const r = await git(ctx, [...args, `--max-count=${n + 1}`, "HEAD", "--", literal(p)], { ok: [0, 128] })
+  if (r.code !== 0) return { commits: [], truncated: false }
+  const commits = parseFileLog(r.stdout.toString("utf8"))
+  return { commits: commits.slice(0, n), truncated: commits.length > n }
 }
 
 // ---------------------------------------------------------------------------
