@@ -86,7 +86,7 @@ export async function searchNames(ctx: WtCtx, p: SearchParams): Promise<NameSear
   const r = await rg(["--files", "--no-config", "--hidden", ...(p.ignored ? ["--no-ignore"] : []), ...globs, "."], ctx, (line) => {
     const path = line.replace(/^\.\//, "")
     if (!path || !inScope(path)) return
-    if (!matcher.find(path.slice(path.lastIndexOf("/") + 1)).length) return
+    if (!matcher.find(path).length) return
     files.push({ path, ignored: !visible.has(path) })
     if (files.length >= MAX_FILES) {
       truncated = true

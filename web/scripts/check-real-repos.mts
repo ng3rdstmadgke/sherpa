@@ -211,7 +211,7 @@ async function checkWorktree(repo: string, ctx: WtCtx, compareBranch: string | n
         for (const m of h.matches) assert(h.text.slice(m.start, m.end).toLowerCase() === word.toLowerCase(), `一致の位置が違う: ${h.path}:${h.line}`)
       }
       const n = await searchNames(ctx, { ...opts, q: "spec", ignored: true })
-      for (const f of n.files) assert(/spec/i.test(f.path.split("/").pop()!), `ファイル名に spec がない: ${f.path}`)
+      for (const f of n.files) assert(/spec/i.test(f.path), `パスに spec がない: ${f.path}`)
       return `「${word}」${r.hits.length} 件${r.truncated ? " (truncated)" : ""} / ファイル名「spec」${n.files.length} 件 (無視されたもの ${n.files.filter((f) => f.ignored).length})`
     },
     3000,

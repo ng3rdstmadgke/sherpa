@@ -429,6 +429,9 @@ describe("検索", () => {
   it("ファイル名の検索 (gitignore ON)", async () => {
     const r = await S.search.searchNames(await ctx(), p("spec", { ignored: true }))
     expect(r.files).toEqual([{ path: "agent-tasks/feature/x/spec.md", ignored: true }])
+    // パスに当てるので、ディレクトリを含めても探せる
+    const byPath = await S.search.searchNames(await ctx(), p("feature/x/sp", { ignored: true }))
+    expect(byPath.files).toEqual([{ path: "agent-tasks/feature/x/spec.md", ignored: true }])
     const readme = await S.search.searchNames(await ctx(), p("readme", { ignored: true }))
     // node_modules の中は出さない
     expect(readme.files).toEqual([{ path: "README.md", ignored: false }])

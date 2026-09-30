@@ -32,8 +32,8 @@ type ActiveSearch = {
   // 内容の検索でヒットした行 (ファイルのパス → 行)。ファイル名の検索では空
   hits: Map<string, SearchHit[]>
   matches: (node: FileNode) => boolean
-  // ファイル名の中で一致した範囲 (強調表示用)
-  nameRanges: (name: string) => Match[]
+  // パスで一致した範囲のうち、ファイル名の中の部分 (強調表示用。位置はファイル名の中)
+  nameRanges: (path: string) => Match[]
   // ツリーにまだないファイル (無視されたディレクトリの中でヒットしたもの)。ツリーに差し込む
   extra: { path: string; ignored: boolean }[]
   loading: boolean
@@ -49,7 +49,7 @@ function useDebounced<T>(value: T, ms: number): T {
   return v
 }
 
-// 内容の検索はサーバー (rg)。ファイル名の検索は、「gitignore」OFF ならブラウザにあるツリーで絞り、ON ならサーバーに問い合わせる
+// 内容の検索はサーバー (rg)。ファイル名の検索 (worktree からのパスに当てる) は、「gitignore」OFF ならブラウザにあるツリーで絞り、ON ならサーバーに問い合わせる
 function useSearch(form: SearchForm, mode: SearchMode, showIgnored: boolean): { search: ActiveSearch | null; error?: string } {
   const debounced = useDebounced(form, 200)
   const matcher = buildMatcher(form.q, form)
@@ -71,8 +71,14 @@ function useSearch(form: SearchForm, mode: SearchMode, showIgnored: boolean): { 
         search: {
           mode,
           hits: new Map(),
-          matches: (n: FileNode) => (showIgnored ? serverSet.has(n.path) : inScope(n.path) && matcher.find(n.name).length > 0),
-          nameRanges: matcher.find,
+          matches: (n: FileNode) => (showIgnored ? serverSet.has(n.path) : inScope(n.path) && matcher.find(n.path).length > 0),
+          nameRanges: (path: string) => {
+            const base = path.lastIndexOf("/") + 1
+            return matcher
+              .find(path)
+              .filter((m) => m.end > base)
+              .map((m) => ({ start: Math.max(m.start, base) - base, end: m.end - base }))
+          },
           extra: server,
           loading: showIgnored && names.isFetching,
           truncated: !!names.data?.truncated,
@@ -455,7 +461,7 @@ function Tree(props: {
             >
               <FileIcon path={n.path} />
               <span className={cn("truncate", status && statusColor[status])}>
-                {search?.mode === "name" ? <Highlight text={n.name} ranges={search.nameRanges(n.name)} /> : n.name}
+                {search?.mode === "name" ? <Highlight text={n.name} ranges={search.nameRanges(n.path)} /> : n.name}
               </span>
               <span className="ml-auto flex shrink-0 items-center gap-1.5">
                 {hits.length > 0 && (
