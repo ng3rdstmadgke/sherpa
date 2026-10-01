@@ -15,6 +15,7 @@ const EXT_LANG: Record<string, string> = {
   py: "python",
   go: "go",
   rs: "rust",
+  lua: "lua",
 }
 
 export function langFromPath(path: string): string {
