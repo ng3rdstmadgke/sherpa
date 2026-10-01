@@ -35,7 +35,7 @@ playwright-cli install-browser chrome
 ## 3. 起動して確かめる
 
 ```bash
-~/sherpa/bin/sherpa run -d          # npm run dev (http://127.0.0.1:4747)
+~/sherpa/bin/sherpa run -d          # npm run dev (0.0.0.0:4747。同じマシンからは http://localhost:4747)
 ~/sherpa/bin/sherpa run -d -p 4748  # ポートを変える
 ```
 

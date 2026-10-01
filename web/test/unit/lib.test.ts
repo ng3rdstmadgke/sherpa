@@ -3,7 +3,7 @@ import { globToRegExp, matchesAny, parseSearchGlobs } from "@/lib/glob"
 import { isSpec, parseSpecPaths, specBaseDir } from "@/lib/spec"
 import { buildMatcher } from "@/lib/search"
 import { relTime, formatSize } from "@/lib/format"
-import { checkRequest, hostname, isPreviewRequest } from "@/lib/request-guard"
+import { checkRequest, hostname, isPreviewRequest, parseAllowedHosts } from "@/lib/request-guard"
 import { DEFAULT_EXCLUDES, parseExcludeLines } from "@/lib/excludes"
 import { buildMarkdownDiff, diffSides, withinHighlightLimit, type MdNode } from "@/lib/diff"
 import type { DiffLine } from "@/lib/types"
@@ -135,6 +135,16 @@ describe("request-guard", () => {
     expect(checkRequest("GET", h({ host: "localhost:4800" }))).toBeNull()
     expect(checkRequest("GET", h({ host: "127.0.0.1:4747" }))).toBeNull()
     expect(checkRequest("GET", h({ host: "[::1]:4747" }))).toBeNull()
+  })
+  it("SHERPA_ALLOWED_HOSTS で許したホスト名は通す (Host と Origin)", () => {
+    const allowed = parseAllowedHosts(" 192.168.50.10, Dev-Server:4747 ,,")
+    expect(allowed).toEqual(["192.168.50.10", "dev-server"])
+    expect(checkRequest("GET", h({ host: "192.168.50.10:4747" }), "", allowed)).toBeNull()
+    expect(checkRequest("GET", h({ host: "dev-server" }), "", allowed)).toBeNull()
+    expect(checkRequest("GET", h({ host: "192.168.50.11:4747" }), "", allowed)?.status).toBe(421)
+    const post = (origin: string) => h({ host: "192.168.50.10:4747", "content-type": "application/json", origin })
+    expect(checkRequest("POST", post("http://192.168.50.10:4747"), "", allowed)).toBeNull()
+    expect(checkRequest("POST", post("http://evil.example"), "", allowed)?.status).toBe(403)
   })
   it("cross-site は 403", () => {
     expect(checkRequest("GET", h({ host: "localhost:4747", "sec-fetch-site": "cross-site" }))?.status).toBe(403)

@@ -26,8 +26,8 @@
 
 ## コマンド (web/ で実行)
 
-- `npm run dev`: `127.0.0.1:4747` で起動する (`PORT` で変更できる)
-- `bin/sherpa run [-p <PORT>] [-d]` (リポジトリの直下から): Node.js の切り替え・npm install・必要なときのビルドをしてから起動する。`-d` は `npm run dev`
+- `npm run dev`: `0.0.0.0:4747` で起動する (`PORT` でポート、`SHERPA_HOST` で待ち受けるアドレスを変更できる。IP やホスト名で開くときは `SHERPA_ALLOWED_HOSTS`)
+- `bin/sherpa run [-p <PORT>] [-H <ADDR>] [--allow-host <NAME>] [-d]` (リポジトリの直下から): Node.js の切り替え・npm install・必要なときのビルドをしてから起動する。`-d` は `npm run dev`
 - `npm run lint` / `npx tsc --noEmit` / `npm run build` / `npm test`
 - `npx tsx scripts/check-real-repos.mts <repo> [<repo>=<除外>,…]`: 実際のリポジトリに対する読み取り専用の確認
 - `npx tsc --noEmit` の `LayoutProps` のエラーは、Next.js がまだ型を生成していないときに出る。`npx next typegen` を先に実行すれば出ない
@@ -38,8 +38,8 @@
 
 - 確認に使う実際のリポジトリ (`CLAUDE.local.md` に書く。公開しない) は読み取り専用。fetch / checkout / add など書き込む操作は実行しない
   - git は `GIT_OPTIONAL_LOCKS=0` と `-c diff.autoRefreshIndex=false` を付けて実行する (`GIT_OPTIONAL_LOCKS=0` だけでは、`git diff` が stat の変わったファイルのために index を書き直すことがある)
-- `127.0.0.1` 以外では待ち受けない
-- 同じディレクトリで `next dev` を 2 つ起動できない。`127.0.0.1:4747` で dev サーバーが動いていればそれを使う。自分で起動したら、終わったら止める
+- 待ち受けは既定で `0.0.0.0` (認証はない)。許すホスト名を広げるときは `SHERPA_ALLOWED_HOSTS` を使い、Host / Origin の確認 (`web/src/lib/request-guard.ts`) は外さない
+- 同じディレクトリで `next dev` を 2 つ起動できない。`4747` で dev サーバーが動いていればそれを使う。自分で起動したら、終わったら止める
 
 ## 開発上の注意
 

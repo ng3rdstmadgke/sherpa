@@ -18,7 +18,7 @@ Sherpa は、複数の開発プロジェクト (git リポジトリ / worktree) 
 - **自動更新**: ファイルが書き換わると、開いているタブと差分を自動で読み直します
 - **閲覧専用**: 編集や git の操作 (add / commit / fetch など) はしません
 
-開発サーバー (Linux) の上で起動し、`127.0.0.1:4747` でだけ待ち受けます。手元の PC からは SSH のポートフォワードを通して開きます。
+開発サーバー (Linux) の上で起動し、`0.0.0.0:4747` で待ち受けます。手元の PC からは、開発サーバーの IP アドレス (`--allow-host` で許す) か、SSH のポートフォワードを通して開きます。認証はないので、信頼できないネットワークでは `-H 127.0.0.1` で起動して SSH のポートフォワードを使ってください。
 
 仕様と仕組みは [docs/architecture/overview.md](docs/architecture/overview.md) にあります。
 
@@ -70,8 +70,10 @@ npm のパッケージ (`npm install`) は、初めて起動したときに起�
 `bin/sherpa` で起動します。Node.js の版の切り替え (`web/.nvmrc`)、必要なときの `npm install` とビルドは、このコマンドが行います。
 
 ```bash
-~/sherpa/bin/sherpa run              # ビルドして起動する (http://127.0.0.1:4747)。ソースが変わっていなければビルドしない
+~/sherpa/bin/sherpa run              # ビルドして起動する (0.0.0.0:4747)。ソースが変わっていなければビルドしない
 ~/sherpa/bin/sherpa run -p 4748      # ポートを指定する
+~/sherpa/bin/sherpa run --allow-host 192.168.50.10   # http://192.168.50.10:4747 で開けるようにする (何度でも指定できる)
+~/sherpa/bin/sherpa run -H 127.0.0.1 # 127.0.0.1 でだけ待ち受ける
 ~/sherpa/bin/sherpa run -d           # 開発用として起動する (npm run dev)
 ~/sherpa/bin/sherpa --help
 ```
@@ -84,13 +86,14 @@ ln -s ~/sherpa/bin/sherpa ~/.local/bin/sherpa
 sherpa run
 ```
 
-ローカルのPCで http://localhost:4747 にアクセス
+同じマシンからは http://localhost:4747 、手元の PC からは `--allow-host` に指定したアドレス (http://192.168.50.10:4747 など) にアクセス
 
+- ブラウザで開くときのホスト名が `127.0.0.1` / `localhost` か `--allow-host` (環境変数 `SHERPA_ALLOWED_HOSTS`) で許したものでなければ、421 を返します (DNS rebinding の対策)
 - 登録したプロジェクトや画面の状態 (開いていたタブ・分割・テーマなど) は SQLite (`~/.local/share/sherpa/sherpa.db`) に保存し、次に開いたときに復元します。場所は環境変数 `SHERPA_DB` で変えられます
 
 ### SSH ポートフォワード
 
-リモートサーバーでSherpaを実行する場合、手元のPCから http://localhost:4747 でアクセスするには SSH ポートフォワードが必要です。
+IP アドレスで開かずに、手元の PC から http://localhost:4747 でアクセスするときは、SSH ポートフォワードを使います (`-H 127.0.0.1` で起動したときも)。
 `~/.ssh/config` に以下のように `LocalForward 4747 127.0.0.1:4747` を指定します。
 
 ```~/.ssh/config

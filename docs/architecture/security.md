@@ -4,19 +4,20 @@
 
 ## 1. 待ち受け
 
-- `127.0.0.1` でだけ待ち受ける (`package.json` の `next dev -H 127.0.0.1` / `next start -H 127.0.0.1`)。Next.js の既定は `0.0.0.0` なので、`-H` を消さない
-- 認証は設けない。手元の PC からは SSH のポートフォワードで開く
+- `0.0.0.0` で待ち受ける (`package.json` の `next dev -H ${SHERPA_HOST:-0.0.0.0}` / `next start -H ${SHERPA_HOST:-0.0.0.0}`)。環境変数 `SHERPA_HOST` (`bin/sherpa run -H <ADDR>`) で変えられる
+- 認証は設けない。同じネットワークから開けるので、待ち受けるポートに届く相手は、登録したリポジトリの中身とホームの下のディレクトリの名前を読める。信頼できないネットワークでは、`SHERPA_HOST=127.0.0.1` にして SSH のポートフォワードで開く
 
 ## 2. Host と Origin の確認 (`proxy.ts`)
 
 すべての要求 (ページ・`/_next`・API) で確かめる。
 
-- `Host` のホスト名が `127.0.0.1`・`localhost`・`[::1]` 以外なら 421 (DNS rebinding の対策)
+- `Host` のホスト名が `127.0.0.1`・`localhost`・`[::1]` と、環境変数 `SHERPA_ALLOWED_HOSTS` (カンマ区切りのホスト名か IP アドレス。`bin/sherpa run --allow-host <NAME>`) のどれでもなければ 421 (DNS rebinding の対策)
+  - IP アドレスやホスト名 (`http://192.168.50.10:4747`) で開くときは、その名前を `SHERPA_ALLOWED_HOSTS` に入れる。起動するときに読む
   - ポートは見ない。SSH のポートフォワードで手元の別のポート (`LocalForward 4800 127.0.0.1:4747`) から開くと、`Host` は `localhost:4800` になるため
 - `Sec-Fetch-Site: cross-site` の要求は 403 (ほかのサイトのページから読ませない。`<img>` などを含む)
   - 例外: HTML のプレビュー (`…/preview/<合言葉>/<path>`) の GET / HEAD。プレビューの中からの読み込みは cross-site になるため。代わりに合言葉を確かめる (§6)
 - 書き込み (GET / HEAD / OPTIONS 以外)
-  - `Origin` があれば、そのホスト名も上と同じであること (違えば 403)
+  - `Origin` があれば、そのホスト名も上で許すものであること (違えば 403)
   - `Content-Type: application/json` に限る (違えば 415)。ほかのサイトのページからの単純なリクエスト (preflight のないもの) で書き換えられないように
 - CORS のヘッダーは返さない
 

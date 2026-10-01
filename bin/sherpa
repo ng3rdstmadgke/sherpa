@@ -7,10 +7,13 @@ usage() {
 Usage: sherpa <subcommand> [options]
 
 Subcommands:
-  run          sherpa を起動する (http://127.0.0.1:<PORT>)
+  run          sherpa を起動する (http://<HOST>:<PORT>)
 
 Options (run):
   -p, --port <PORT>   ポートを指定する (既定: 4747)
+  -H, --host <ADDR>   待ち受けるアドレスを指定する (既定: 0.0.0.0。環境変数 SHERPA_HOST と同じ)
+  --allow-host <NAME> ブラウザで開くときのホスト名か IP アドレスを許す (127.0.0.1 / localhost は常に許す)。
+                      何度でも指定できる (環境変数 SHERPA_ALLOWED_HOSTS にカンマ区切りで足す)
   -d, --dev           開発用として起動する (npm run dev)。指定しなければビルドして起動する (npm run build && npm run start)
   -h, --help          この説明を出す
 EOF
@@ -78,7 +81,7 @@ needs_build() {
 }
 
 cmd_run() {
-  local port=4747 dev=false
+  local port=4747 dev=false host="${SHERPA_HOST:-0.0.0.0}" allowed="${SHERPA_ALLOWED_HOSTS:-}"
   while [ $# -gt 0 ]; do
     case "$1" in
       -p | --port)
@@ -88,6 +91,24 @@ cmd_run() {
         ;;
       --port=*)
         port="${1#*=}"
+        shift
+        ;;
+      -H | --host)
+        [ $# -ge 2 ] || error "$1 にはアドレスを指定してください"
+        host="$2"
+        shift 2
+        ;;
+      --host=*)
+        host="${1#*=}"
+        shift
+        ;;
+      --allow-host)
+        [ $# -ge 2 ] || error "$1 にはホスト名を指定してください"
+        allowed="${allowed:+$allowed,}$2"
+        shift 2
+        ;;
+      --allow-host=*)
+        allowed="${allowed:+$allowed,}${1#*=}"
         shift
         ;;
       -d | --dev)
@@ -108,7 +129,7 @@ cmd_run() {
   setup_node
   ensure_deps
   cd "$WEB"
-  export PORT="$port"
+  export PORT="$port" SHERPA_HOST="$host" SHERPA_ALLOWED_HOSTS="$allowed"
   if $dev; then
     exec npm run dev
   fi
