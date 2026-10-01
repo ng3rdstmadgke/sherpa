@@ -10,6 +10,7 @@ import { Toggle } from "@/components/ui/toggle"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type { Change, DiffLine, DiffResult, DiffSide, FileContent } from "@/lib/types"
 import { errorMessage, previewUrl, rawUrl, useChanges, useCommit, useDiff, useFile, usePreviewToken, useWt } from "@/lib/api"
+import { copyText } from "@/lib/clipboard"
 import { usePersistentState } from "@/lib/persist"
 import { formatSize, relTime } from "@/lib/format"
 import { CodeViewer, langFromPath } from "@/components/viewers/code-viewer"
@@ -78,11 +79,13 @@ function Breadcrumb({ path }: { path: string }) {
       )}
       <span className="shrink-0 text-foreground">{file}</span>
       <button
-        onClick={() => {
-          navigator.clipboard?.writeText(path)
-          setCopied(true)
-          setTimeout(() => setCopied(false), 1500)
-        }}
+        onClick={() =>
+          void copyText(path).then((ok) => {
+            if (!ok) return
+            setCopied(true)
+            setTimeout(() => setCopied(false), 1500)
+          })
+        }
         className="ml-1 shrink-0 rounded p-1 hover:bg-accent"
         title={copied ? "コピーしました" : "相対パスをコピー"}
       >

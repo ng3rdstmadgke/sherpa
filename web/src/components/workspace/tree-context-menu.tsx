@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Check, Copy, Download } from "lucide-react"
 import { downloadUrl, useWt } from "@/lib/api"
+import { copyText } from "@/lib/clipboard"
 
 // ツリーの右クリックメニュー。ツリー全体に 1 つだけ置き (行ごとには持たない)、
 // 右クリックされた位置から一番近い [data-tree-path] の行を対象にする。
@@ -45,10 +46,12 @@ export function TreeContextMenu({ children }: { children: React.ReactNode }) {
   }, [menu])
 
   const copy = (text: string) => {
-    navigator.clipboard?.writeText(text)
     setMenu(null)
-    setCopied(text)
-    setTimeout(() => setCopied(null), 1500)
+    void copyText(text).then((ok) => {
+      if (!ok) return
+      setCopied(text)
+      setTimeout(() => setCopied(null), 1500)
+    })
   }
 
   // ファイルをダウンロードする (サーバーが Content-Disposition: attachment で返すので、画面は移らない)

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import type { Project, Worktree } from "@/lib/types"
 import { relTime } from "@/lib/format"
+import { copyText } from "@/lib/clipboard"
 import { ProjectDialog } from "@/components/project-dialog"
 
 // worktree バーの「詳細」ボタン。ブランチ名・ディレクトリなど、常に見せなくてよい情報をまとめて表示する
@@ -99,11 +100,13 @@ function Copyable({ text }: { text: string }) {
       {/* パスを確認するための表示なので、省略せずに折り返す */}
       <span className="pt-0.5 font-mono text-xs break-all">{text}</span>
       <button
-        onClick={() => {
-          navigator.clipboard?.writeText(text)
-          setCopied(true)
-          setTimeout(() => setCopied(false), 1500)
-        }}
+        onClick={() =>
+          void copyText(text).then((ok) => {
+            if (!ok) return
+            setCopied(true)
+            setTimeout(() => setCopied(false), 1500)
+          })
+        }
         className="shrink-0 rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
         title="コピー"
       >
