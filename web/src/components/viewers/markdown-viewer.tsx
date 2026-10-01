@@ -108,8 +108,14 @@ export function MarkdownViewer({
               </code>
             )
           },
-          pre({ children }) {
-            return <>{children}</>
+          // 言語のあるコードブロックは code() がブロックにする。言語のないもの (``` だけ) は、code() では行内のコードと
+          // 見分けられないので、ここで同じ見た目のブロック (ハイライトなし) にする
+          pre({ node, children }) {
+            const code = node?.children[0]
+            const className = code?.type === "element" ? code.properties.className : undefined
+            const hasLang = Array.isArray(className) && className.some((c) => /^language-\w/.test(String(c)))
+            if (hasLang || code?.type !== "element") return <>{children}</>
+            return <HighlightedBlock code={textOf(code).replace(/\n$/, "")} lang="text" />
           },
           img({ src, alt }) {
             const path = String(src ?? "")
