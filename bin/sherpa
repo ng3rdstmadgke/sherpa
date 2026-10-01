@@ -12,8 +12,9 @@ Subcommands:
 Options (run):
   -p, --port <PORT>   ポートを指定する (既定: 4747)
   -H, --host <ADDR>   待ち受けるアドレスを指定する (既定: 0.0.0.0。環境変数 SHERPA_HOST と同じ)
-  --allow-host <NAME> ブラウザで開くときのホスト名か IP アドレスを許す (127.0.0.1 / localhost は常に許す)。
-                      何度でも指定できる (環境変数 SHERPA_ALLOWED_HOSTS にカンマ区切りで足す)
+  --allow-host <NAME> ブラウザで開くときのホスト名を許す。localhost と、このマシンの IP アドレスとホスト名は
+                      指定しなくても許す (DNS の別名などで開くときに使う)。何度でも指定できる
+                      (環境変数 SHERPA_ALLOWED_HOSTS にカンマ区切りで足す)
   -d, --dev           開発用として起動する (npm run dev)。指定しなければビルドして起動する (npm run build && npm run start)
   -h, --help          この説明を出す
 EOF

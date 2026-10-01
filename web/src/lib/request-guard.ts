@@ -22,7 +22,14 @@ export function parseAllowedHosts(value: string | undefined): string[] {
     .map(hostname)
 }
 
-// ローカルのホスト名か、SHERPA_ALLOWED_HOSTS で許したホスト名か
+// このマシンの IP アドレス (os.networkInterfaces()) とホスト名 (os.hostname()) を、Host で比べる形にする。
+// IPv6 は [ ] で囲む。リンクローカル (fe80::) は Host にゾーン (%eth0) が要り、ブラウザで開けないので除く
+export function machineHosts(addresses: string[], name: string): string[] {
+  const ips = addresses.filter((a) => !/^fe80:/i.test(a)).map((a) => (a.includes(":") ? `[${a.toLowerCase()}]` : a))
+  return [...ips, ...(name ? [name.toLowerCase()] : [])]
+}
+
+// ローカルのホスト名か、許したホスト名 (このマシンの IP アドレスとホスト名・SHERPA_ALLOWED_HOSTS) か
 export function isAllowedHost(host: string | null, allowed: string[] = []) {
   return isLocalHost(host) || (!!host && allowed.includes(hostname(host)))
 }
@@ -37,7 +44,7 @@ export function isPreviewRequest(method: string, pathname: string) {
 }
 
 // 断るときは { status, message } を返す。通すときは null。pathname は要求のパス (プレビューの例外を見るのに使う)。
-// allowed: ローカルのほかに許すホスト名 (SHERPA_ALLOWED_HOSTS)
+// allowed: ローカルのほかに許すホスト名 (このマシンの IP アドレスとホスト名・SHERPA_ALLOWED_HOSTS)
 export function checkRequest(
   method: string,
   headers: { get(name: string): string | null },
@@ -45,7 +52,7 @@ export function checkRequest(
   allowed: string[] = [],
 ): { status: number; message: string } | null {
   if (!isAllowedHost(headers.get("host"), allowed))
-    return { status: 421, message: "Host が 127.0.0.1 / localhost か、SHERPA_ALLOWED_HOSTS で許したホスト名ではありません" }
+    return { status: 421, message: "Host が localhost・このマシンの IP アドレスとホスト名・SHERPA_ALLOWED_HOSTS のどれでもありません" }
   if (headers.get("sec-fetch-site") === "cross-site" && !isPreviewRequest(method, pathname))
     return { status: 403, message: "ほかのサイトからの要求は受け付けません" }
   const m = method.toUpperCase()

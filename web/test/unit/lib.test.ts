@@ -3,7 +3,7 @@ import { globToRegExp, matchesAny, parseSearchGlobs } from "@/lib/glob"
 import { isSpec, parseSpecPaths, specBaseDir } from "@/lib/spec"
 import { buildMatcher } from "@/lib/search"
 import { relTime, formatSize } from "@/lib/format"
-import { checkRequest, hostname, isPreviewRequest, parseAllowedHosts } from "@/lib/request-guard"
+import { checkRequest, hostname, isPreviewRequest, machineHosts, parseAllowedHosts } from "@/lib/request-guard"
 import { DEFAULT_EXCLUDES, parseExcludeLines } from "@/lib/excludes"
 import { buildMarkdownDiff, diffSides, withinHighlightLimit, type MdNode } from "@/lib/diff"
 import type { DiffLine } from "@/lib/types"
@@ -145,6 +145,14 @@ describe("request-guard", () => {
     const post = (origin: string) => h({ host: "192.168.50.10:4747", "content-type": "application/json", origin })
     expect(checkRequest("POST", post("http://192.168.50.10:4747"), "", allowed)).toBeNull()
     expect(checkRequest("POST", post("http://evil.example"), "", allowed)?.status).toBe(403)
+  })
+  it("このマシンの IP アドレスとホスト名 (リンクローカルは除く)", () => {
+    const hosts = machineHosts(["127.0.0.1", "::1", "10.53.80.176", "fe80::4a1:fff:fea4:58a5", "2001:DB8::1"], "IP-10-53-80-176")
+    expect(hosts).toEqual(["127.0.0.1", "[::1]", "10.53.80.176", "[2001:db8::1]", "ip-10-53-80-176"])
+    expect(checkRequest("GET", h({ host: "10.53.80.176:4747" }), "", hosts)).toBeNull()
+    expect(checkRequest("GET", h({ host: "[2001:db8::1]:4747" }), "", hosts)).toBeNull()
+    expect(checkRequest("GET", h({ host: "ip-10-53-80-176:4747" }), "", hosts)).toBeNull()
+    expect(checkRequest("GET", h({ host: "evil.example:4747" }), "", hosts)?.status).toBe(421)
   })
   it("cross-site は 403", () => {
     expect(checkRequest("GET", h({ host: "localhost:4747", "sec-fetch-site": "cross-site" }))?.status).toBe(403)

@@ -11,8 +11,10 @@
 
 すべての要求 (ページ・`/_next`・API) で確かめる。
 
-- `Host` のホスト名が `127.0.0.1`・`localhost`・`[::1]` と、環境変数 `SHERPA_ALLOWED_HOSTS` (カンマ区切りのホスト名か IP アドレス。`bin/sherpa run --allow-host <NAME>`) のどれでもなければ 421 (DNS rebinding の対策)
-  - IP アドレスやホスト名 (`http://192.168.50.10:4747`) で開くときは、その名前を `SHERPA_ALLOWED_HOSTS` に入れる。起動するときに読む
+- `Host` のホスト名が次のどれでもなければ 421 (DNS rebinding の対策。攻撃に使われるのはほかのドメイン名なので、このマシンの IP アドレスとホスト名は許してよい)
+  - `127.0.0.1`・`localhost`・`[::1]`
+  - このマシンの IP アドレス (`os.networkInterfaces()`。IPv6 は `[…]`。リンクローカルの `fe80::` は除く) とホスト名 (`os.hostname()`)。IP アドレスは変わることがあるので、10 秒ごとに読み直す
+  - 環境変数 `SHERPA_ALLOWED_HOSTS` (カンマ区切り。`bin/sherpa run --allow-host <NAME>`)。DNS の別名など、上にない名前で開くときに使う。起動するときに読む
   - ポートは見ない。SSH のポートフォワードで手元の別のポート (`LocalForward 4800 127.0.0.1:4747`) から開くと、`Host` は `localhost:4800` になるため
 - `Sec-Fetch-Site: cross-site` の要求は 403 (ほかのサイトのページから読ませない。`<img>` などを含む)
   - 例外: HTML のプレビュー (`…/preview/<合言葉>/<path>`) の GET / HEAD。プレビューの中からの読み込みは cross-site になるため。代わりに合言葉を確かめる (§6)

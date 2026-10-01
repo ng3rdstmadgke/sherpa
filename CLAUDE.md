@@ -26,7 +26,7 @@
 
 ## コマンド (web/ で実行)
 
-- `npm run dev`: `0.0.0.0:4747` で起動する (`PORT` でポート、`SHERPA_HOST` で待ち受けるアドレスを変更できる。IP やホスト名で開くときは `SHERPA_ALLOWED_HOSTS`)
+- `npm run dev`: `0.0.0.0:4747` で起動する (`PORT` でポート、`SHERPA_HOST` で待ち受けるアドレスを変更できる。このマシンの IP アドレスとホスト名以外の名前で開くときは `SHERPA_ALLOWED_HOSTS`)
 - `bin/sherpa run [-p <PORT>] [-H <ADDR>] [--allow-host <NAME>] [-d]` (リポジトリの直下から): Node.js の切り替え・npm install・必要なときのビルドをしてから起動する。`-d` は `npm run dev`
 - `npm run lint` / `npx tsc --noEmit` / `npm run build` / `npm test`
 - `npx tsx scripts/check-real-repos.mts <repo> [<repo>=<除外>,…]`: 実際のリポジトリに対する読み取り専用の確認
