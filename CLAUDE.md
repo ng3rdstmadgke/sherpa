@@ -2,6 +2,10 @@
 
 複数の開発プロジェクト (git リポジトリ / worktree) のソースコード・Markdown・git 差分を、1 つのブラウザ画面で横断して閲覧するローカル Web アプリ。閲覧専用。
 
+## 原則
+
+- ユーザには日本語で応答すること
+
 ## 資料
 
 - 仕様と仕組みの正本: `docs/architecture/overview.md` (機能ごとの詳細は `docs/architecture/*.md`)
