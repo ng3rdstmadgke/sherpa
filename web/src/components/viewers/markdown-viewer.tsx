@@ -18,7 +18,7 @@ function HighlightedBlock({ code, lang }: { code: string; lang: string }) {
 }
 
 // クリックでモーダルを開き、拡大・縮小する。リンクの中の画像 (バッジなど) はリンクのほうを優先する
-function MarkdownImage({ src, alt, name }: { src: string; alt: string; name: string }) {
+function MarkdownImage({ src, alt, name, width, height }: { src: string; alt: string; name: string; width?: string; height?: string }) {
   const [size, setSize] = useState<{ width: number; height: number } | null>(null)
   const [open, setOpen] = useState(false)
   return (
@@ -27,7 +27,9 @@ function MarkdownImage({ src, alt, name }: { src: string; alt: string; name: str
       <img
         src={src}
         alt={alt}
-        className={cn("rounded border", size && "cursor-zoom-in in-[a]:cursor-pointer")}
+        width={width}
+        height={height}
+        className={cn("my-0 inline-block rounded border align-middle", size && "cursor-zoom-in in-[a]:cursor-pointer")}
         onLoad={(e) => {
           const { naturalWidth: width, naturalHeight: height } = e.currentTarget
           setSize(width > 0 && height > 0 ? { width, height } : null)
@@ -48,6 +50,37 @@ function MarkdownImage({ src, alt, name }: { src: string; alt: string; name: str
 
 type HastNode = { type: string; tagName?: string; value?: string; properties?: Record<string, unknown>; children?: HastNode[] }
 const textOf = (n: HastNode): string => (n.type === "text" ? (n.value ?? "") : (n.children ?? []).map(textOf).join(""))
+
+type MdastNode = MdNode & { value?: string; url?: string; alt?: string }
+const FLOW_PARENTS = new Set(["root", "blockquote", "listItem", "footnoteDefinition"])
+const ENTITIES: Record<string, string> = { amp: "&", quot: '"', apos: "'", lt: "<", gt: ">" }
+const decodeEntities = (s: string) => s.replace(/&(amp|quot|apos|lt|gt|#39);/g, (_, e: string) => (e === "#39" ? "'" : ENTITIES[e]))
+
+// 生の HTML のうち <img> だけを Markdown の画像にする (README の <p align="center"><img …></p> や、width を付けた画像など)。
+// ほかのタグは描画しない (スクリプトや style を sherpa の画面で動かさないため)。属性は src・alt・width・height だけを使う
+function remarkHtmlImages() {
+  return (tree: MdastNode) => {
+    const walk = (n: MdastNode) => {
+      if (!n.children) return
+      n.children = n.children.flatMap((c: MdastNode): MdastNode[] => {
+        if (c.type !== "html") {
+          walk(c)
+          return [c]
+        }
+        const images = [...(c.value ?? "").matchAll(/<img\b([^>]*)>/gi)].flatMap((m): MdastNode[] => {
+          const attrs: Record<string, string> = {}
+          for (const a of m[1].matchAll(/([a-zA-Z-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g)) attrs[a[1].toLowerCase()] = decodeEntities(a[2] ?? a[3] ?? a[4])
+          if (!attrs.src) return []
+          const size = Object.fromEntries((["width", "height"] as const).filter((k) => attrs[k]).map((k) => [k, attrs[k]]))
+          return [{ type: "image", url: attrs.src, alt: attrs.alt ?? "", position: c.position, data: { hProperties: size } }]
+        })
+        if (!images.length) return [c]
+        return FLOW_PARENTS.has(n.type) ? [{ type: "paragraph", position: c.position, children: images }] : images
+      })
+    }
+    walk(tree)
+  }
+}
 
 // 見出しに、リンク先の名前 (GitHub と同じ作り方) を data-heading-id で付ける。
 // id にしないのは、画面のほかの要素の id とぶつからないようにするため (同じファイルを 2 つのグループで開くこともある)
@@ -94,7 +127,7 @@ export function MarkdownViewer({
   return (
     <article className="markdown-body px-8 py-6">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, ...(remarkPlugins ?? [])]}
+        remarkPlugins={[remarkGfm, ...(remarkPlugins ?? []), remarkHtmlImages]}
         rehypePlugins={[rehypeHeadingIds]}
         components={{
           code({ className, children, ...props }) {
@@ -117,9 +150,12 @@ export function MarkdownViewer({
             if (hasLang || code?.type !== "element") return <>{children}</>
             return <HighlightedBlock code={textOf(code).replace(/\n$/, "")} lang="text" />
           },
-          img({ src, alt }) {
+          img({ src, alt, width, height }) {
             const path = String(src ?? "")
-            return <MarkdownImage src={resolveImage(path)} alt={alt ?? ""} name={path.split(/[?#]/)[0].split("/").pop() ?? ""} />
+            // javascript: などは react-markdown が空にする
+            if (!path) return null
+            const size = { width: width === undefined ? undefined : String(width), height: height === undefined ? undefined : String(height) }
+            return <MarkdownImage src={resolveImage(path)} alt={alt ?? ""} name={path.split(/[?#]/)[0].split("/").pop() ?? ""} {...size} />
           },
           a({ href, children }) {
             // `#見出し` だけのリンクは、別のタブで開かずに、同じファイルの中をスクロールする
