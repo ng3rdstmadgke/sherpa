@@ -61,8 +61,29 @@ const MD_OPTIONS: { value: MdMode; label: string }[] = [
   { value: "source", label: "ソース" },
 ]
 
-function Breadcrumb({ path }: { path: string }) {
+// 相対パスをコピーするボタン (パスのバーと、コミットの詳細のファイルの見出し)
+function CopyPathButton({ path }: { path: string }) {
   const [copied, setCopied] = useState(false)
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation()
+        void copyText(path).then((ok) => {
+          if (!ok) return
+          setCopied(true)
+          setTimeout(() => setCopied(false), 1500)
+        })
+      }}
+      onKeyDown={(e) => e.stopPropagation()}
+      className="ml-1 shrink-0 rounded p-1 hover:bg-accent"
+      title={copied ? "コピーしました" : "相対パスをコピー"}
+    >
+      {copied ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3" />}
+    </button>
+  )
+}
+
+function Breadcrumb({ path }: { path: string }) {
   const parts = path.split("/")
   const file = parts.pop()
   return (
@@ -78,19 +99,7 @@ function Breadcrumb({ path }: { path: string }) {
         </span>
       )}
       <span className="shrink-0 text-foreground">{file}</span>
-      <button
-        onClick={() =>
-          void copyText(path).then((ok) => {
-            if (!ok) return
-            setCopied(true)
-            setTimeout(() => setCopied(false), 1500)
-          })
-        }
-        className="ml-1 shrink-0 rounded p-1 hover:bg-accent"
-        title={copied ? "コピーしました" : "相対パスをコピー"}
-      >
-        {copied ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3" />}
-      </button>
+      <CopyPathButton path={path} />
     </div>
   )
 }
@@ -492,18 +501,31 @@ function CommitDetail({ commit }: { commit: { hash: string; shortHash: string; m
             const isOpen = open.has(f.path)
             return (
               <div key={f.path} className="overflow-hidden rounded-md border">
-                <button
+                {/* 見出し全体で開閉する。中にコピーのボタンを置くので、button ではなく role="button" にする */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={isOpen}
                   onClick={() => toggle(f.path)}
-                  className={cn("sticky top-0 z-10 flex w-full items-center gap-2 bg-muted/50 px-3 py-2 text-left text-sm hover:bg-muted", isOpen && "border-b")}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter" && e.key !== " ") return
+                    e.preventDefault()
+                    toggle(f.path)
+                  }}
+                  className={cn(
+                    "sticky top-0 z-10 flex w-full cursor-pointer items-center gap-2 bg-muted/50 px-3 py-2 text-left text-sm hover:bg-muted",
+                    isOpen && "border-b",
+                  )}
                 >
                   {isOpen ? <ChevronDown className="size-4 shrink-0" /> : <ChevronRight className="size-4 shrink-0" />}
                   <span className={cn("w-3 font-mono text-xs", statusColor[f.status])}>{f.status}</span>
                   <FileIcon path={f.path} />
                   <span className="truncate font-mono text-[13px]">{f.oldPath ? `${f.oldPath} → ${f.path}` : f.path}</span>
+                  <CopyPathButton path={f.path} />
                   <span className="ml-auto">
                     <DiffStat additions={f.additions} deletions={f.deletions} />
                   </span>
-                </button>
+                </div>
                 {isOpen && <LoadedDiff path={f.path} oldPath={f.oldPath} base={{ type: "commit", hash: commit.hash }} format={mode} />}
               </div>
             )
