@@ -35,6 +35,9 @@ type Instance = { id: string; projectId: string; worktreeId: string }
 // 設定タブの id (プロジェクトのタブの id と重ならない値)
 const SETTINGS = "settings"
 
+// プロジェクトのタブをドラッグで並べ替えるときの MIME タイプ (エディタのタブの application/x-sherpa-tab と分けて、エディタ領域に落とさない)
+const INSTANCE_MIME = "application/x-sherpa-instance"
+
 const newInstanceId = () => `t-${Math.random().toString(36).slice(2, 9)}`
 
 export function AppShell() {
@@ -97,6 +100,22 @@ export function AppShell() {
     setSettingsOpen(false)
     if (activeId === SETTINGS) setActiveId(instances[instances.length - 1]?.id ?? "home")
   }
+  // ドラッグで並べ替える。落とした位置は、重ねたタブの左半分なら前、右半分なら後ろ
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [dropAt, setDropAt] = useState<{ id: string; after: boolean } | null>(null)
+  const endDrag = () => {
+    setDragId(null)
+    setDropAt(null)
+  }
+  const moveInstance = (id: string, targetId: string, after: boolean) =>
+    setInstances((prev) => {
+      const moving = prev.find((i) => i.id === id)
+      const rest = prev.filter((i) => i.id !== id)
+      const at = rest.findIndex((i) => i.id === targetId)
+      if (!moving || at < 0) return prev
+      const idx = after ? at + 1 : at
+      return [...rest.slice(0, idx), moving, ...rest.slice(idx)]
+    })
   const changeWorktree = (id: string, worktreeId: string) =>
     setInstances((prev) => prev.map((i) => (i.id === id ? { ...i, worktreeId } : i)))
   const toggleDark = () => setTheme(dark ? "light" : "dark")
@@ -127,14 +146,44 @@ export function AppShell() {
               return (
                 <div
                   key={inst.id}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData(INSTANCE_MIME, inst.id)
+                    e.dataTransfer.effectAllowed = "move"
+                    setDragId(inst.id)
+                  }}
+                  onDragOver={(e) => {
+                    if (!e.dataTransfer.types.includes(INSTANCE_MIME)) return
+                    e.preventDefault()
+                    e.dataTransfer.dropEffect = "move"
+                    const r = e.currentTarget.getBoundingClientRect()
+                    const after = e.clientX > r.left + r.width / 2
+                    if (dropAt?.id !== inst.id || dropAt.after !== after) setDropAt({ id: inst.id, after })
+                  }}
+                  onDragLeave={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropAt((d) => (d?.id === inst.id ? null : d))
+                  }}
+                  onDrop={(e) => {
+                    const id = e.dataTransfer.getData(INSTANCE_MIME)
+                    if (!id) return
+                    e.preventDefault()
+                    if (id !== inst.id && dropAt) moveInstance(id, inst.id, dropAt.after)
+                    endDrag()
+                  }}
+                  onDragEnd={endDrag}
                   onClick={() => setActiveId(inst.id)}
                   onAuxClick={(e) => e.button === 1 && close(inst.id)}
                   title={w ? `${p.name} / ${branchLabel(w)}\n${tildify(w.hostPath)}` : p.name}
                   className={cn(
-                    "group flex h-8 max-w-72 shrink-0 cursor-pointer items-center gap-2 rounded-md pr-1 pl-3 text-sm",
+                    "group relative flex h-8 max-w-72 shrink-0 cursor-pointer items-center gap-2 rounded-md pr-1 pl-3 text-sm",
                     activeId === inst.id ? "bg-background shadow-sm" : "text-muted-foreground hover:bg-background/60",
+                    dragId === inst.id && "opacity-50",
                   )}
                 >
+                  {/* 落とす位置の印 (タブの間の隙間に縦線) */}
+                  {dropAt?.id === inst.id && dragId !== inst.id && (
+                    <span className={cn("pointer-events-none absolute inset-y-1 w-0.5 rounded bg-sky-500", dropAt.after ? "-right-[3px]" : "-left-[3px]")} />
+                  )}
                   <span className={cn("size-2 shrink-0 rounded-full", p.color)} />
                   <span className="shrink-0">{p.name}</span>
                   {w && !w.isMain && <span className="truncate text-xs text-muted-foreground">/ {w.name}</span>}
