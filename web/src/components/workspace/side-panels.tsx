@@ -13,7 +13,7 @@ import { errorMessage, listWorktreeDir, useChildren, useContentSearch, useNameSe
 import { matchesAny, parseSearchGlobs } from "@/lib/glob"
 import { buildMatcher, type Match, type SearchOptions } from "@/lib/search"
 import { PathSuggestInput } from "@/components/path-suggest-input"
-import { FileIcon, setTabDrag, statusColor } from "./common"
+import { FileIcon, PRESSED_FILL, setTabDrag, statusColor } from "./common"
 import type { DocTab } from "./editor-layout"
 import { Section, SectionGroup } from "./panel-section"
 import { TreeContextMenu } from "./tree-context-menu"
@@ -190,7 +190,9 @@ function useToggleSet(initial: string[] = []) {
     })
   const add = (ps: string[]) =>
     setSet((prev) => (ps.every((p) => prev.has(p)) ? prev : new Set([...prev, ...ps])))
-  return [set, toggle, add] as const
+  const remove = (ps: string[]) => setSet((prev) => (ps.some((p) => prev.has(p)) ? new Set([...prev].filter((p) => !ps.includes(p))) : prev))
+  const clear = () => setSet((prev) => (prev.size ? new Set() : prev))
+  return [set, toggle, add, remove, clear] as const
 }
 
 // ---------------------------------------------------------------------------
@@ -230,6 +232,8 @@ export function FilesPanel({
   // エクスプローラの絞り込み: 変更のみ / .md のみ / gitignore (無視されたファイルも表示)
   const [filters, setFilters] = useState<string[]>([])
   const [expanded, toggleExpanded, expand] = useToggleSet()
+  // 絞り込み (検索を含む) の間はすべて開いて表示し、閉じたディレクトリをここに入れる
+  const [collapsed, toggleCollapsed, , uncollapse, clearCollapsed] = useToggleSet()
   const [specCollapsed, toggleSpecCollapsed] = useToggleSet()
   const explorerRef = useRef<HTMLDivElement>(null)
 
@@ -237,7 +241,11 @@ export function FilesPanel({
   const [revealed, setRevealed] = useState<string | undefined>()
   if (activePath !== revealed) {
     setRevealed(activePath)
-    if (activePath) expand(activePath.split("/").slice(0, -1).map((_, i, a) => a.slice(0, i + 1).join("/")))
+    if (activePath) {
+      const dirs = activePath.split("/").slice(0, -1).map((_, i, a) => a.slice(0, i + 1).join("/"))
+      expand(dirs)
+      uncollapse(dirs)
+    }
   }
   useEffect(() => {
     if (!activePath) return
@@ -273,6 +281,13 @@ export function FilesPanel({
     [tree.data, search, changedOnly, mdOnly, showIgnored, diffStatus],
   )
   const explorerForceOpen = changedOnly || mdOnly || !!search
+  // 絞り込みを変えたら、閉じたディレクトリを開き直す
+  const forceOpenKey = explorerForceOpen ? JSON.stringify([changedOnly, mdOnly, search ? [searchMode, form] : null]) : ""
+  const [prevForceOpenKey, setPrevForceOpenKey] = useState(forceOpenKey)
+  if (forceOpenKey !== prevForceOpenKey) {
+    setPrevForceOpenKey(forceOpenKey)
+    clearCollapsed()
+  }
 
   const summary = useMemo(() => {
     if (!search) return null
@@ -377,13 +392,13 @@ export function FilesPanel({
           defaultSize="70"
           actions={
             <ToggleGroup size="sm" variant="outline" multiple value={filters} onValueChange={(v: string[]) => setFilters(v)}>
-              <ToggleGroupItem value="changed" className="h-6 px-2 text-[11px]" title="比較対象との差分があるファイルだけを表示">
+              <ToggleGroupItem value="changed" className={cn("h-6 px-2 text-[11px]", PRESSED_FILL)} title="比較対象との差分があるファイルだけを表示">
                 変更のみ
               </ToggleGroupItem>
-              <ToggleGroupItem value="md" className="h-6 px-2 text-[11px]">
+              <ToggleGroupItem value="md" className={cn("h-6 px-2 text-[11px]", PRESSED_FILL)}>
                 .md のみ
               </ToggleGroupItem>
-              <ToggleGroupItem value="ignored" className="h-6 px-2 text-[11px]" title=".gitignore で無視されたファイルも表示する">
+              <ToggleGroupItem value="ignored" className={cn("h-6 px-2 text-[11px]", PRESSED_FILL)} title=".gitignore で無視されたファイルも表示する">
                 gitignore
               </ToggleGroupItem>
             </ToggleGroup>
@@ -400,8 +415,8 @@ export function FilesPanel({
               <Tree
                 nodes={explorerNodes}
                 depth={0}
-                isOpen={(p) => explorerForceOpen || expanded.has(p)}
-                toggle={toggleExpanded}
+                isOpen={(p) => (explorerForceOpen ? !collapsed.has(p) : expanded.has(p))}
+                toggle={explorerForceOpen ? toggleCollapsed : toggleExpanded}
                 onOpen={onOpen}
                 activePath={activePath}
                 search={search}

@@ -18,7 +18,7 @@ import { MarkdownDiffViewer, MarkdownViewer } from "@/components/viewers/markdow
 import { DiffViewer } from "@/components/viewers/diff-viewer"
 import { ZoomView } from "@/components/viewers/zoom-dialog"
 import { diffSides, withinHighlightLimit } from "@/lib/diff"
-import { DiffStat, dirname, FileIcon, resolveRelative, statusColor } from "./common"
+import { DiffStat, dirname, FileIcon, PRESSED_FILL, resolveRelative, statusColor } from "./common"
 import { baseLabel, type DiffBase, type DocTab, type DocView, type GroupView } from "./editor-layout"
 import { HistoryList, UNCOMMITTED, useHistory } from "./history-list"
 
@@ -43,7 +43,7 @@ function Segmented<T extends string>({ value, onChange, options }: { value: T; o
           key={o.value}
           value={o.value}
           title={o.title}
-          className="h-6 px-2 text-xs text-muted-foreground aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary/90 aria-pressed:hover:text-primary-foreground"
+          className={cn("h-6 px-2 text-xs text-muted-foreground", PRESSED_FILL)}
         >
           {o.label}
         </ToggleGroupItem>

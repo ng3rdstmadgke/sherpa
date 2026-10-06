@@ -10,6 +10,9 @@ export const statusColor: Record<string, string> = {
   R: "text-sky-600 dark:text-sky-400",
 }
 
+// 押したトグル (パスのバーの切り替え・エクスプローラの絞り込み) を塗る色
+export const PRESSED_FILL = "aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary/90 aria-pressed:hover:text-primary-foreground"
+
 export function basename(p: string) {
   return p.split("/").pop() ?? p
 }
