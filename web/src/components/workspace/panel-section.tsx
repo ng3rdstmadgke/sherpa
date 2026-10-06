@@ -46,15 +46,19 @@ export function Section(props: {
       collapsedSize={HEADER_PX}
       onResize={(size) => setCollapsed(size.inPixels <= HEADER_PX + 1)}
     >
-      <section className="flex h-full flex-col overflow-hidden">
+      {/* @container: 中の部品が、セクションの幅で見た目を変えられるようにする (エクスプローラの絞り込みのボタンなど) */}
+      <section className="@container flex h-full flex-col overflow-hidden">
         <div className="flex shrink-0 items-center gap-1 pr-2" style={{ height: HEADER_PX }}>
           <button
             onClick={toggle}
             className="flex h-full min-w-0 flex-1 items-center gap-1 pl-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase hover:text-foreground"
           >
             {collapsed ? <ChevronRight className="size-3.5 shrink-0" /> : <ChevronDown className="size-3.5 shrink-0" />}
-            {props.title}
-            {props.count !== undefined && <span className="rounded-full bg-muted px-1.5 font-mono text-[10px] font-normal">{props.count}</span>}
+            {/* 幅が足りないときは見出しを省略して、右のボタンと重ならないようにする */}
+            <span className="truncate" title={props.title}>
+              {props.title}
+            </span>
+            {props.count !== undefined && <span className="shrink-0 rounded-full bg-muted px-1.5 font-mono text-[10px] font-normal">{props.count}</span>}
             {props.caption && <span className="ml-auto truncate font-mono text-[10px] font-normal normal-case">{props.caption}</span>}
           </button>
           {props.actions && <div className="flex shrink-0 items-center gap-1">{props.actions}</div>}

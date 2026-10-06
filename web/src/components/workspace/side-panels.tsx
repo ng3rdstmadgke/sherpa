@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { cn } from "cn"
-import { ChevronDown, ChevronRight, Folder, FolderOpen, Search, X } from "lucide-react"
+import { ChevronDown, ChevronRight, EyeOff, FileDiff, FileText, Folder, FolderOpen, Search, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { ResizableHandle } from "@/components/ui/resizable"
@@ -200,6 +200,13 @@ function useToggleSet(initial: string[] = []) {
 // 検索すると、エクスプローラのツリーを、ヒットしたファイルとその親ディレクトリだけに絞り込む (SPEC は絞り込まない)
 // ---------------------------------------------------------------------------
 
+// エクスプローラの絞り込みのボタン
+const EXPLORER_FILTERS = [
+  { value: "changed", label: "変更のみ", title: "変更のみ: 比較対象との差分があるファイルだけを表示", Icon: FileDiff },
+  { value: "md", label: ".md のみ", title: ".md のみ: Markdown のファイルだけを表示", Icon: FileText },
+  { value: "ignored", label: "gitignore", title: "gitignore: .gitignore で無視されたファイルも表示する", Icon: EyeOff },
+]
+
 export function FilesPanel({
   specInput,
   specPatterns,
@@ -392,15 +399,13 @@ export function FilesPanel({
           defaultSize="70"
           actions={
             <ToggleGroup size="sm" variant="outline" multiple value={filters} onValueChange={(v: string[]) => setFilters(v)}>
-              <ToggleGroupItem value="changed" className={cn("h-6 px-2 text-[11px]", PRESSED_FILL)} title="比較対象との差分があるファイルだけを表示">
-                変更のみ
-              </ToggleGroupItem>
-              <ToggleGroupItem value="md" className={cn("h-6 px-2 text-[11px]", PRESSED_FILL)}>
-                .md のみ
-              </ToggleGroupItem>
-              <ToggleGroupItem value="ignored" className={cn("h-6 px-2 text-[11px]", PRESSED_FILL)} title=".gitignore で無視されたファイルも表示する">
-                gitignore
-              </ToggleGroupItem>
+              {EXPLORER_FILTERS.map(({ value, label, title, Icon }) => (
+                // サイドバーが狭い (セクションの幅が 20rem 未満) ときはアイコンだけにする。名前は title と aria-label で出す
+                <ToggleGroupItem key={value} value={value} aria-label={label} title={title} className={cn("h-6 px-1.5 text-[11px] @xs:px-2", PRESSED_FILL)}>
+                  <Icon className="size-3.5 @xs:hidden" />
+                  <span className="hidden @xs:inline">{label}</span>
+                </ToggleGroupItem>
+              ))}
             </ToggleGroup>
           }
         >
