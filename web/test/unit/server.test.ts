@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { byteToUtf16, parseFileLog, parseForEachRef, parseLog, parseRawNumstat, parseRgLine, parseUnifiedDiff } from "@/server/git-parse"
+import { byteToUtf16, parseBlamePorcelain, parseFileLog, parseForEachRef, parseLog, parseRawNumstat, parseRgLine, parseUnifiedDiff } from "@/server/git-parse"
 import { checkRel, isInside } from "@/server/paths"
 import { mapPath, parseGitFile } from "@/server/worktrees"
 import { buildTree, excludePathspecs } from "@/server/files"
@@ -74,6 +74,37 @@ describe("parseFileLog", () => {
     expect(c.map((x) => x.message)).toEqual(["変更", "名前を変える"])
     expect(c[0].change).toEqual({ path: "docs/new name.md", status: "M", additions: 2, deletions: 1 })
     expect(c[1].change).toEqual({ path: "docs/new name.md", oldPath: "docs/old.md", status: "R", additions: 1, deletions: 1 })
+  })
+})
+
+describe("parseBlamePorcelain", () => {
+  it("行ごとのコミットと、同じコミットが続く行のまとまりを取る (author などはコミットが初めて出たときだけ)", () => {
+    const a = "a".repeat(40)
+    const z = "0".repeat(40)
+    const info = (author: string, time: number, summary: string) =>
+      [`author ${author}`, "author-mail <x@example.com>", `author-time ${time}`, "author-tz +0900", `summary ${summary}`, "filename f.ts"]
+    const out = [
+      `${a} 1 1 2`,
+      ...info("Claude", 1790000000, "最初"),
+      "\tline 1",
+      `${a} 2 2`,
+      "\t\tインデント",
+      `${z} 3 3 1`,
+      ...info("Not Committed Yet", 1800000000, "Version of f.ts from f.ts"),
+      "\tline 3",
+      `${a} 3 4 1`,
+      "\t",
+      "",
+    ].join("\n")
+    const r = parseBlamePorcelain(out)
+    expect(r.lines).toEqual(["line 1", "\tインデント", "line 3", ""])
+    expect(r.hunks).toEqual([
+      { hash: a, start: 1, count: 2 },
+      { hash: z, start: 3, count: 1 },
+      { hash: a, start: 4, count: 1 },
+    ])
+    expect(r.commits[a]).toEqual({ hash: a, shortHash: "aaaaaaa", author: "Claude", date: new Date(1790000000 * 1000).toISOString(), summary: "最初", path: "f.ts" })
+    expect(r.commits[z].author).toBe("Not Committed Yet")
   })
 })
 

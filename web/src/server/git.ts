@@ -1,10 +1,11 @@
 import { lstat, readFile, stat } from "node:fs/promises"
 import path from "node:path"
 import { matchesAny } from "@/lib/glob"
-import { AUTO_COMPARE_BRANCHES, MAX_FILE_HISTORY, type Branch, type Change, type Commit, type CompareResult, type DiffLine, type DiffResult, type FileHistory } from "@/lib/types"
+import { AUTO_COMPARE_BRANCHES, MAX_BLAME_BYTES, MAX_FILE_HISTORY, type BlameResult, type Branch, type Change, type Commit, type CompareResult, type DiffLine, type DiffResult, type FileHistory } from "@/lib/types"
 import { ApiError } from "./errors"
+import { resolveInside } from "./paths"
 import { git, gitText, type GitCtx } from "./exec"
-import { LOG_FORMAT, parseFileLog, parseForEachRef, parseLog, parseRawNumstat, parseUnifiedDiff } from "./git-parse"
+import { LOG_FORMAT, parseBlamePorcelain, parseFileLog, parseForEachRef, parseLog, parseRawNumstat, parseUnifiedDiff } from "./git-parse"
 import type { WtCtx } from "./projects"
 
 // 機能ごとの git のコマンド (docs/architecture/git.md)
@@ -174,6 +175,21 @@ export async function fileHistory(ctx: GitCtx, p: string, max = 200): Promise<Fi
   if (r.code !== 0) return { commits: [], truncated: false }
   const commits = parseFileLog(r.stdout.toString("utf8"))
   return { commits: commits.slice(0, n), truncated: commits.length > n }
+}
+
+// 1 ファイルの blame。作業ツリーの今の内容に対して取る (未コミットの行は UNCOMMITTED_HASH になる)。
+// git blame はパスを pathspec ではなくファイル名として読むので、-- の後にそのまま渡す。履歴をたどるので時間の上限を長めにする
+export async function fileBlame(ctx: WtCtx, p: string): Promise<BlameResult> {
+  const abs = await resolveInside(ctx.root, p, { followLinks: false })
+  const st = await lstat(abs).catch(() => null)
+  if (!st) throw new ApiError("NOT_FOUND", "ファイルが見つかりません (削除されたか、名前が変わりました)", 404)
+  if (!st.isFile()) throw new ApiError("INVALID_REQUEST", "ファイルではありません")
+  if (st.size > MAX_BLAME_BYTES) throw new ApiError("INVALID_REQUEST", `大きすぎるため blame しません (${MAX_BLAME_BYTES / 1024 / 1024} MB まで)`)
+  if (IMAGE_EXT.test(p) || (await readFile(abs)).subarray(0, 8000).includes(0)) throw new ApiError("INVALID_REQUEST", "バイナリのため blame しません")
+  const r = await git(ctx, ["blame", "--porcelain", "--", p], { timeout: 30_000, ok: [0, 128] })
+  if (r.truncated) throw new ApiError("GIT_FAILED", "git blame が時間内に終わりませんでした", 500)
+  if (r.code !== 0) throw new ApiError("GIT_FAILED", r.stderr.trim().split("\n")[0] || "git blame が失敗しました", 500)
+  return parseBlamePorcelain(r.stdout.toString("utf8"))
 }
 
 // ---------------------------------------------------------------------------

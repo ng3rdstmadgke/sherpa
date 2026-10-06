@@ -1,4 +1,4 @@
-import type { Branch, Change, ChangeStatus, Commit, DiffLine, FileCommit, Match, SearchHit } from "@/lib/types"
+import type { BlameCommit, BlameResult, Branch, Change, ChangeStatus, Commit, DiffLine, FileCommit, Match, SearchHit } from "@/lib/types"
 
 // git / rg の出力のパース。純粋な関数 (単体テストの対象)
 
@@ -179,4 +179,41 @@ export function parseRgLine(line: string): SearchHit | null {
   const text = raw.replace(/\r?\n$/, "")
   const matches: Match[] = (d.submatches ?? []).map((s) => ({ start: byteToUtf16(text, s.start), end: byteToUtf16(text, s.end) }))
   return { path: path.replace(/^\.\//, ""), line: d.line_number ?? 0, text, matches }
+}
+
+// git blame --porcelain の出力を BlameResult にする。
+// 1 行ごとに「<hash> <元の行> <今の行> [<まとまりの行数>]」の見出し、そのコミットが初めて出たときだけ author などの行、最後に「\t<本文>」が続く
+export function parseBlamePorcelain(out: string): BlameResult {
+  const rows = out.split("\n")
+  const lines: string[] = []
+  const hunks: BlameResult["hunks"] = []
+  const commits: Record<string, BlameCommit> = {}
+  let i = 0
+  while (i < rows.length) {
+    const m = /^([0-9a-f]{40}) \d+ (\d+)(?: \d+)?$/.exec(rows[i++])
+    if (!m) continue
+    const hash = m[1]
+    const info: Record<string, string> = {}
+    while (i < rows.length && !rows[i].startsWith("\t")) {
+      const sp = rows[i].indexOf(" ")
+      if (sp > 0) info[rows[i].slice(0, sp)] = rows[i].slice(sp + 1)
+      i++
+    }
+    if (!commits[hash]) {
+      const time = Number(info["author-time"])
+      commits[hash] = {
+        hash,
+        shortHash: hash.slice(0, 7),
+        author: info.author ?? "",
+        date: Number.isFinite(time) ? new Date(time * 1000).toISOString() : "",
+        summary: info.summary ?? "",
+        path: info.filename ?? "",
+      }
+    }
+    lines.push((rows[i++] ?? "\t").slice(1))
+    const last = hunks[hunks.length - 1]
+    if (last?.hash === hash && last.start + last.count === lines.length) last.count++
+    else hunks.push({ hash, start: lines.length, count: 1 })
+  }
+  return { lines, hunks, commits }
 }

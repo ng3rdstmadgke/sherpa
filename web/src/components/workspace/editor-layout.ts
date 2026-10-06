@@ -6,9 +6,10 @@ export type DiffBase = { type: "uncommitted" } | { type: "branch"; branch: strin
 
 // パスのバーの切り替え (グループごとに持ち、グループの中のタブで共有する。なし = 既定)
 // display: 差分か全体か (既定はファイルタブは全体、差分タブは差分) / format: 差分の形式 (既定は unified) /
-// md: Markdown をプレビューとソースのどちらで見るか (既定はプレビュー。行を指定して開いたときはソース) / history: 左にファイルの履歴を出すか
-export type GroupView = { display?: "diff" | "file"; format?: "unified" | "split"; md?: "preview" | "source"; history?: boolean }
-const VIEW_KEYS = ["display", "format", "md", "history"] as const
+// md: Markdown をプレビューとソースのどちらで見るか (既定はプレビュー。行を指定して開いたときはソース) / history: 左にファイルの履歴を出すか /
+// blame: 本文を blame (行ごとの最後に変えたコミット) にするか
+export type GroupView = { display?: "diff" | "file"; format?: "unified" | "split"; md?: "preview" | "source"; history?: boolean; blame?: boolean }
+const VIEW_KEYS = ["display", "format", "md", "history", "blame"] as const
 
 // タブに付けて開くと、グループの表示も変える (検索結果の行から開くときの「全体」「ソース」など。値を undefined にすると既定に戻す)。
 // rev はタブごと: 履歴で選んだもの (コミットのハッシュか "uncommitted")。選んでいる間は、本文をその差分にする
@@ -18,7 +19,8 @@ export type DocTab =
   | ({ kind: "file"; path: string; line?: number } & DocView)
   // oldPath: 名前を変えたときの元のパス (差分を取るのに使う。タブの識別には使わない)
   | ({ kind: "diff"; path: string; oldPath?: string; base: DiffBase } & DocView)
-  | { kind: "commit"; hash: string }
+  // path: 開いたときに展開する変更ファイル (blame から開いたとき。タブの識別には使わない)
+  | { kind: "commit"; hash: string; path?: string }
 
 export function baseKey(b: DiffBase) {
   return b.type === "uncommitted" ? "uncommitted" : `${b.branch}${b.includeUncommitted ? "+wt" : ""}`
@@ -63,8 +65,8 @@ function mapGroup(node: LayoutNode, id: string, fn: (g: Group) => Group): Layout
 // タブに付いたグループの表示 (GroupView) を取り出し、タブからは外す
 function splitView(tab: DocTab): { tab: DocTab; patch: GroupView | null } {
   if (tab.kind === "commit" || !VIEW_KEYS.some((k) => k in tab)) return { tab, patch: null }
-  const { display, format, md, history, ...rest } = tab
-  const all = { display, format, md, history }
+  const { display, format, md, history, blame, ...rest } = tab
+  const all = { display, format, md, history, blame }
   const patch: GroupView = {}
   for (const k of VIEW_KEYS) if (k in tab) Object.assign(patch, { [k]: all[k] })
   return { tab: rest, patch }

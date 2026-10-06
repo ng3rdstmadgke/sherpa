@@ -1,6 +1,8 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type CSSProperties } from "react"
+import type { BundledLanguage, ThemedToken } from "shiki"
+import { withinHighlightLimit } from "@/lib/diff"
 
 const EXT_LANG: Record<string, string> = {
   ts: "typescript",
@@ -75,4 +77,41 @@ export function CodeViewer({ path, code, highlightLine, plain }: { path: string;
     return <pre className="code-view sherpa-code-text p-4 font-mono text-muted-foreground">{code}</pre>
   }
   return <div ref={ref} className="code-view with-line-numbers" dangerouslySetInnerHTML={{ __html: html }} />
+}
+
+// 行ごとに色を付ける (blame のように、行を表の 1 行ずつに並べるとき)。全体をまとめてハイライトするので、複数行のコメントなども正しく色が付く。
+// 大きすぎるときと、ハイライトできない言語は null (色を付けない)
+export function useLineTokens(lines: string[], lang: string) {
+  const enabled = lang !== "text" && withinHighlightLimit(lines)
+  const [result, setResult] = useState<{ lines: string[]; tokens: ThemedToken[][] } | null>(null)
+  useEffect(() => {
+    if (!enabled) return
+    let cancelled = false
+    import("shiki").then(async ({ codeToTokens }) => {
+      try {
+        const r = await codeToTokens(lines.join("\n"), { lang: lang as BundledLanguage, themes: { light: "github-light", dark: "github-dark" }, defaultColor: false })
+        if (!cancelled) setResult({ lines, tokens: r.tokens })
+      } catch {
+        // 知らない言語などは色を付けずに表示する
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [enabled, lang, lines])
+  // 別の内容に切り替わった直後は、前の色を使わない
+  return enabled && result?.lines === lines ? result.tokens : null
+}
+
+// 1 行分のトークン。.shiki の規則 (globals.css) で、テーマの色・太字などを効かせる
+export function TokenLine({ tokens }: { tokens: ThemedToken[] }) {
+  return (
+    <span className="shiki">
+      {tokens.map((t, i) => (
+        <span key={i} style={t.htmlStyle as CSSProperties}>
+          {t.content}
+        </span>
+      ))}
+    </span>
+  )
 }

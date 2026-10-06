@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { cn } from "cn"
-import { AlertTriangle, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Copy, History } from "lucide-react"
+import { AlertTriangle, Check, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Copy, History, UserPen } from "lucide-react"
 import type { Layout } from "react-resizable-panels"
 import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
@@ -20,6 +20,7 @@ import { ZoomView } from "@/components/viewers/zoom-dialog"
 import { diffSides, withinHighlightLimit } from "@/lib/diff"
 import { DiffStat, dirname, FileIcon, PRESSED_FILL, resolveRelative, statusColor } from "./common"
 import { baseLabel, type DiffBase, type DocTab, type DocView, type GroupView } from "./editor-layout"
+import { BlameView } from "./blame-view"
 import { HistoryList, UNCOMMITTED, useHistory } from "./history-list"
 
 export type DocumentActions = {
@@ -120,7 +121,7 @@ function Notice({ children, error }: { children: React.ReactNode; error?: boolea
 
 // view: グループの表示 (パスのバーの切り替え。グループの中のタブで共有する)
 export function DocumentView({ tab, view, actions }: { tab: DocTab; view: GroupView; actions: DocumentActions }) {
-  if (tab.kind === "commit") return <CommitView hash={tab.hash} />
+  if (tab.kind === "commit") return <CommitView hash={tab.hash} focusPath={tab.path} />
   if (tab.kind === "diff") return <DiffDocument tab={tab} view={view} actions={actions} />
   return <FileDocument tab={tab} view={view} actions={actions} />
 }
@@ -313,8 +314,9 @@ function LoadedDiff(props: {
 type FileTab = Extract<DocTab, { kind: "file" }>
 type DiffTab = Extract<DocTab, { kind: "diff" }>
 
-// ファイルタブと差分タブの本文。パスのバーの右に [プレビュー|ソース] [Unified|Split] [差分|全体] [History] を並べる。
+// ファイルタブと差分タブの本文。パスのバーの右に [プレビュー|ソース] [Unified|Split] [差分|全体] [Blame] [History] を並べる。
 // プレビュー / ソースは Markdown (と、全体のときの HTML) だけ、Unified / Split は差分のときだけ、差分 / 全体は差分があるときか履歴で選んでいるときだけ出す。
+// Blame と History はどちらか一方だけ。Blame の間は本文を blame にし、ほかの切り替えは出さない
 // diff: 差分の取り方 (ファイルタブは比較対象との差分をファイル全体に重ねる。差分がなければ undefined)
 function DocumentPane(props: { tab: FileTab | DiffTab; view: GroupView; actions: DocumentActions; diff?: { base: DiffBase; oldPath?: string; expandAll?: boolean } }) {
   const { tab, view, actions, diff } = props
@@ -329,7 +331,8 @@ function DocumentPane(props: { tab: FileTab | DiffTab; view: GroupView; actions:
   // 履歴 (左の一覧)。Untracked のファイルにはコミットがないので出さない
   const own = useChanges().data?.find((c) => c.path === path)
   const untracked = own?.status === "U"
-  const historyOpen = !!view.history && !untracked
+  const blameOpen = !!view.blame && !untracked
+  const historyOpen = !!view.history && !untracked && !blameOpen
   const history = useHistory(path, historyOpen)
   const rev = historyOpen ? tab.rev : undefined
   const revCommit = rev && rev !== UNCOMMITTED ? history.data?.commits.find((c) => c.hash === rev) : undefined
@@ -350,9 +353,12 @@ function DocumentPane(props: { tab: FileTab | DiffTab; view: GroupView; actions:
   const showDiff = !!rev || display === "diff"
   // 検索結果から行を指定して開いたときはソースを表示する
   const md: MdMode = canPreview ? (view.md ?? (line ? "source" : "preview")) : "source"
-  const label = rev ? revDiff?.label : diff && display === "diff" ? baseLabel(diff.base) : undefined
+  const label = blameOpen ? undefined : rev ? revDiff?.label : diff && display === "diff" ? baseLabel(diff.base) : undefined
 
-  const body = rev ? (
+  const body = blameOpen ? (
+    // クリックしたコミットは、同じグループのタブで開き、このファイルだけを展開する
+    <BlameView path={path} onOpenCommit={(hash, p) => actions.updateTab({ kind: "commit", hash, path: p })} />
+  ) : rev ? (
     revDiff ? (
       <LoadedDiff path={revDiff.path} oldPath={revDiff.oldPath} base={revDiff.base} format={format} preview={isMd && md === "preview"} actions={actions} />
     ) : (
@@ -370,9 +376,9 @@ function DocumentPane(props: { tab: FileTab | DiffTab; view: GroupView; actions:
         <Breadcrumb path={path} />
         {label && <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] whitespace-nowrap text-muted-foreground">{label}</span>}
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          {(isMd || (canPreview && !showDiff)) && <Segmented value={md} onChange={(m) => update({ md: m })} options={MD_OPTIONS} />}
-          {showDiff && <Segmented value={format} onChange={(f) => update({ format: f })} options={FORMAT_OPTIONS} />}
-          {(diff || rev) && (
+          {!blameOpen && (isMd || (canPreview && !showDiff)) && <Segmented value={md} onChange={(m) => update({ md: m })} options={MD_OPTIONS} />}
+          {!blameOpen && showDiff && <Segmented value={format} onChange={(f) => update({ format: f })} options={FORMAT_OPTIONS} />}
+          {!blameOpen && (diff || rev) && (
             // 履歴で選んでいる間はどちらも選ばない。押すと履歴の選択をやめて、その表示にする
             <Segmented
               value={rev ? ("" as Display) : display}
@@ -386,11 +392,23 @@ function DocumentPane(props: { tab: FileTab | DiffTab; view: GroupView; actions:
           <Toggle
             variant="outline"
             size="sm"
+            pressed={blameOpen}
+            disabled={untracked}
+            onPressedChange={(on) => update({ blame: on || undefined, history: undefined, rev: undefined })}
+            title={untracked ? "Untracked のファイルには履歴がありません" : "行ごとに、最後に変えたコミットを表示 (git blame)"}
+            className={cn("h-6 min-w-0 px-2 text-xs text-muted-foreground", PRESSED_FILL)}
+          >
+            <UserPen className="size-3.5" />
+            Blame
+          </Toggle>
+          <Toggle
+            variant="outline"
+            size="sm"
             pressed={historyOpen}
             disabled={untracked}
-            onPressedChange={(on) => update({ history: on || undefined, rev: undefined })}
+            onPressedChange={(on) => update({ history: on || undefined, blame: undefined, rev: undefined })}
             title={untracked ? "Untracked のファイルには履歴がありません" : "このファイルの変更の履歴"}
-            className="h-6 min-w-0 px-2 text-xs text-muted-foreground aria-pressed:bg-primary aria-pressed:text-primary-foreground aria-pressed:hover:bg-primary/90 aria-pressed:hover:text-primary-foreground"
+            className={cn("h-6 min-w-0 px-2 text-xs text-muted-foreground", PRESSED_FILL)}
           >
             <History className="size-3.5" />
             History
@@ -453,17 +471,32 @@ function DiffDocument({ tab, view, actions }: { tab: DiffTab; view: GroupView; a
   return <DocumentPane tab={tab} view={view} actions={actions} diff={{ base: tab.base, oldPath: tab.oldPath }} />
 }
 
-function CommitView({ hash }: { hash: string }) {
+function CommitView({ hash, focusPath }: { hash: string; focusPath?: string }) {
   const { data, error, isPending } = useCommit(hash)
   if (isPending) return <Notice>読み込み中…</Notice>
   if (error) return <Notice error>{errorMessage(error)}</Notice>
-  return <CommitDetail commit={{ ...data, files: data.files ?? [] }} />
+  return <CommitDetail commit={{ ...data, files: data.files ?? [] }} focusPath={focusPath} />
 }
 
-function CommitDetail({ commit }: { commit: { hash: string; shortHash: string; message: string; body: string; author: string; date: string; files: Change[] } }) {
+// focusPath: そのファイルだけを展開して、そこまでスクロールする (blame から開いたとき)
+function CommitDetail({ commit, focusPath }: { focusPath?: string; commit: { hash: string; shortHash: string; message: string; body: string; author: string; date: string; files: Change[] } }) {
   const [mode, setMode] = useState<DiffFormat>("unified")
-  // 開いたときは、変更ファイルをすべて閉じておく (差分はファイルを開いたときに読む)
-  const [open, setOpen] = useState<Set<string>>(() => new Set())
+  // 開いたときは、変更ファイルをすべて閉じておく (差分はファイルを開いたときに読む)。focusPath があれば、そのファイルだけを開く
+  const [open, setOpen] = useState<Set<string>>(() => new Set(focusPath ? [focusPath] : []))
+  // 開いているタブを、blame から別のファイルで開き直したときも、そのファイルを開く (ほかの開閉はそのまま)
+  const [focused, setFocused] = useState(focusPath)
+  if (focusPath !== focused) {
+    setFocused(focusPath)
+    if (focusPath && !open.has(focusPath)) setOpen(new Set(open).add(focusPath))
+  }
+  const scrollRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!focusPath) return
+    const id = requestAnimationFrame(() =>
+      scrollRef.current?.querySelector(`[data-commit-file="${CSS.escape(focusPath)}"]`)?.scrollIntoView({ block: "start" }),
+    )
+    return () => cancelAnimationFrame(id)
+  }, [focusPath])
   const toggle = (p: string) =>
     setOpen((prev) => {
       const n = new Set(prev)
@@ -471,7 +504,7 @@ function CommitDetail({ commit }: { commit: { hash: string; shortHash: string; m
       else n.add(p)
       return n
     })
-  const allOpen = open.size === commit.files.length
+  const allOpen = commit.files.every((f) => open.has(f.path))
   const additions = commit.files.reduce((a, f) => a + f.additions, 0)
   const deletions = commit.files.reduce((a, f) => a + f.deletions, 0)
 
@@ -487,7 +520,7 @@ function CommitDetail({ commit }: { commit: { hash: string; shortHash: string; m
           <Segmented value={mode} onChange={setMode} options={FORMAT_OPTIONS} />
         </div>
       </Toolbar>
-      <div data-find-root className="min-h-0 flex-1 overflow-auto p-6">
+      <div ref={scrollRef} data-find-root className="min-h-0 flex-1 overflow-auto p-6">
         <h2 className="text-lg font-semibold">{commit.message}</h2>
         {commit.body && <pre className="mt-2 font-sans text-sm whitespace-pre-wrap text-muted-foreground">{commit.body}</pre>}
         <p className="mt-2 mb-4 flex items-center gap-2 font-mono text-xs text-muted-foreground">
@@ -498,7 +531,7 @@ function CommitDetail({ commit }: { commit: { hash: string; shortHash: string; m
           {commit.files.map((f) => {
             const isOpen = open.has(f.path)
             return (
-              <div key={f.path} className="overflow-hidden rounded-md border">
+              <div key={f.path} data-commit-file={f.path} className="overflow-hidden rounded-md border">
                 {/* 見出し全体で開閉する。中にコピーのボタンを置くので、button ではなく role="button" にする */}
                 <div
                   role="button"

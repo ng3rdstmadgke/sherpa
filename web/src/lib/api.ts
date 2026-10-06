@@ -7,6 +7,7 @@ import type { DisplaySettings } from "./display"
 import type { SearchOptions } from "./search"
 import type {
   Branch,
+  BlameResult,
   Commit,
   CompareResult,
   ContentSearchResult,
@@ -218,6 +219,12 @@ export function useFileHistory(path: string, max: number, enabled: boolean) {
     enabled,
     placeholderData: keepPreviousData,
   })
+}
+
+// 1 ファイルの blame (作業ツリーの今の内容に対して)
+export function useBlame(path: string, enabled: boolean) {
+  const wt = useWt()
+  return useQuery({ queryKey: wtKey(wt, "blame", path), queryFn: () => api<BlameResult>(wtUrl(wt, "blame", { path })), enabled })
 }
 
 export type SearchRequest = SearchOptions & { q: string; include: string; exclude: string; ignored: boolean }

@@ -97,7 +97,7 @@ web/
 | [projects.md](projects.md) | プロジェクトの登録・編集・解除、worktree の検出、devcontainer のパスの読み替え |
 | [files.md](files.md) | エクスプローラ、SPEC、除外パターン、大きなリポジトリの扱い、ファイルの表示 |
 | [search.md](search.md) | 内容の検索とファイル名の検索 |
-| [git.md](git.md) | 未コミットの差分・COMPARE・HISTORY・差分の作り方・git の実行 |
+| [git.md](git.md) | 未コミットの差分・COMPARE・HISTORY・差分の作り方・ファイルの履歴・blame・git の実行 |
 | [live-reload.md](live-reload.md) | 自動更新 (監視・SSE・読み直し・通知) |
 | [api.md](api.md) | API の一覧と型、エラー、ブラウザ側の取得 |
 | [storage.md](storage.md) | SQLite のテーブルとマイグレーション |

@@ -106,6 +106,16 @@ export type FileHistory = { commits: FileCommit[]; truncated: boolean }
 // 1 ファイルの履歴を一度に読む件数の上限
 export const MAX_FILE_HISTORY = 5000
 
+// 1 ファイルの blame (作業ツリーの今の内容に対して)。lines は 1 行ずつの本文、hunks は同じコミットの行のまとまり (start は 1 から)。
+// 未コミットの行は hash が UNCOMMITTED_HASH (40 桁の 0) になる
+// path: そのコミットでのファイルのパス (後で名前を変えたファイルは、今のパスと違う)
+export type BlameCommit = { hash: string; shortHash: string; author: string; date: string; summary: string; path: string }
+export type BlameHunk = { hash: string; start: number; count: number }
+export type BlameResult = { lines: string[]; hunks: BlameHunk[]; commits: Record<string, BlameCommit> }
+export const UNCOMMITTED_HASH = "0".repeat(40)
+// blame するファイルの大きさの上限 (git blame は履歴をたどるので、ファイルの表示より小さくする)
+export const MAX_BLAME_BYTES = 1024 * 1024
+
 export type Branch = { name: string; ref: string; remote: boolean; date: string }
 
 export type SearchHit = { path: string; line: number; text: string; matches: Match[] }

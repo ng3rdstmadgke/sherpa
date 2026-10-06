@@ -339,6 +339,20 @@ describe("git", () => {
     expect(await S.git.fileHistory(nc, "a.txt")).toEqual({ commits: [], truncated: false })
   })
 
+  it("blame は作業ツリーの今の内容に対して取り、未コミットの行は 0 のハッシュになる", async () => {
+    const c = await ctx()
+    const b = await S.git.fileBlame(c, "README.md")
+    expect(b.lines).toEqual(["# proj changed", "", "line 2", "line 3"])
+    const hashOf = (n: number) => b.hunks.find((h) => h.start <= n && n < h.start + h.count)!.hash
+    expect(hashOf(1)).toBe("0".repeat(40))
+    expect(b.commits[hashOf(3)]).toMatchObject({ summary: "init", path: "README.md" })
+    expect(b.commits[hashOf(4)].summary).toBe("main: README")
+    // Untracked のファイル・ないファイル・ディレクトリ
+    expect(await code(S.git.fileBlame(c, "notes.txt"))).toBe("GIT_FAILED:500")
+    expect(await code(S.git.fileBlame(c, "nope.txt"))).toBe("NOT_FOUND:404")
+    expect(await code(S.git.fileBlame(c, "src"))).toBe("INVALID_REQUEST:400")
+  })
+
   it("エラー: ブランチがない、共通の祖先がない", async () => {
     const c = await ctx()
     expect(await code(S.git.compare(c, "nope", true))).toBe("BRANCH_NOT_FOUND:404")
