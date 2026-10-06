@@ -43,11 +43,14 @@ export function autoCompareBranch(branches: Branch[]): string | null {
   return null
 }
 
-// ブランチの名前を完全な ref にする。一覧にない名前は受け付けない (オプションやファイルと取り違えないように)
-export async function resolveBranch(ctx: GitCtx, name: string): Promise<string> {
+// 比較対象の名前を、git に渡す形にする。ブランチの一覧にある名前は完全な ref、なければ 16 進数をコミットとして探し、40 桁のハッシュにする
+// (それ以外の名前は受け付けない。オプションやファイルと取り違えないように。ブランチを先に見るので、16 進数だけの名前のブランチはブランチとして扱う)
+export async function resolveCompareTarget(ctx: GitCtx, name: string): Promise<string> {
   const b = (await listBranches(ctx)).find((x) => x.name === name)
-  if (!b) throw new ApiError("BRANCH_NOT_FOUND", `${name} が見つかりません`, 404)
-  return b.ref
+  if (b) return b.ref
+  const full = HEX.test(name) ? await revParse(ctx, name) : null
+  if (!full) throw new ApiError("BRANCH_NOT_FOUND", `${name} が見つかりません (ブランチの名前かコミットのハッシュを指定してください)`, 404)
+  return full
 }
 
 export async function revParse(ctx: GitCtx, rev: string): Promise<string | null> {
@@ -129,7 +132,7 @@ export async function changes(ctx: WtCtx): Promise<Change[]> {
 
 // COMPARE: マージベースとの比較と、HISTORY (<ref>..HEAD) と ahead / behind
 export async function compare(ctx: WtCtx, branch: string, includeUncommitted: boolean): Promise<CompareResult> {
-  const ref = await resolveBranch(ctx, branch)
+  const ref = await resolveCompareTarget(ctx, branch)
   const [mb, ab] = await Promise.all([mergeBase(ctx, ref), aheadBehind(ctx, ref)])
   const base: CompareResult = { branch, ref, mergeBase: mb, ahead: ab.ahead, behind: ab.behind, commits: [], moreCommits: 0, files: [] }
   if (!mb) return base
@@ -190,7 +193,7 @@ async function resolveSides(ctx: WtCtx, base: string): Promise<Sides> {
     const parents = (await gitText(ctx, ["rev-list", "--parents", "-n", "1", full, "--"])).trim().split(" ").slice(1)
     return { from: parents[0] ?? (await emptyTree(ctx)), to: full }
   }
-  const ref = await resolveBranch(ctx, m[2])
+  const ref = await resolveCompareTarget(ctx, m[2])
   const mb = await mergeBase(ctx, ref)
   if (!mb) throw new ApiError("GIT_FAILED", `${m[2]} と共通の祖先がありません`, 409)
   return { from: mb, to: m[1] === "branch" ? await revParse(ctx, "HEAD") : null }

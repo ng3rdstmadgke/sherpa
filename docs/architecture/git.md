@@ -15,6 +15,7 @@
   - `core.fsmonitor=false`・`--no-ext-diff`・`--no-textconv`: 差分や status のたびに外部のコマンドを動かさない
 - 利用者の入力を引数に入れるときの決まり ([security.md](security.md) §4)
   - ブランチ: ブランチの一覧にある名前だけを受け付け、`refs/heads/…` か `refs/remotes/…` の完全な名前にして渡す
+  - 比較対象 (COMPARE・HISTORY・`branch:<b>` / `branch-wt:<b>` の差分): ブランチの一覧にある名前ならブランチ、なければコミットとして下の決まりで確かめ、40 桁のハッシュにして渡す
   - コミット: 4〜64 桁の 16 進数だけを受け付け、`git rev-parse --verify --end-of-options <hash>^{commit}` で確かめる
   - パス: `--` の後に `:(literal)<path>` で渡す (ファイル名の `*` を glob として扱わない)
 - コミットがないリポジトリでは、`HEAD` の代わりに空のツリー (`git hash-object -t tree --stdin`) と比べる
@@ -98,7 +99,7 @@
 
 ## 7. HISTORY とコミットの詳細
 
-- 一覧: `git log --format=<…> --shortstat --diff-merges=first-parent --max-count=500 <ref>..HEAD` (比較対象のブランチにないコミットだけ)
+- 一覧: `git log --format=<…> --shortstat --diff-merges=first-parent --max-count=500 <ref>..HEAD` (比較対象にないコミットだけ)
   - `--shortstat` から変更ファイルの数を取る。500 件を超えたら「ほかに N 件のコミットがあります」(N は ahead から数える)
   - マージコミットも並べ、変更ファイルは最初の親との差分
   - 件数の表示は ahead の数

@@ -36,7 +36,7 @@
 | `GET …/wt/preview/<token>/<path>` | パスは URL のパス (ページの中の相対パスを同じ形で解決するため)。合言葉が違えば 403 `FORBIDDEN` | ファイルのバイト列 (HTML のプレビュー) |
 | `GET …/wt/changes` | | `Change[]` |
 | `GET …/wt/branches` | | `Branch[]` |
-| `GET …/wt/compare?branch=&includeUncommitted=0\|1` | | `CompareResult` |
+| `GET …/wt/compare?branch=&includeUncommitted=0\|1` | `branch` はブランチの名前かコミットのハッシュ (`branch:<b>` / `branch-wt:<b>` の `<b>` も同じ) | `CompareResult` |
 | `GET …/wt/diff?path=&oldPath=&base=` | `base` は `uncommitted` / `branch:<b>` / `branch-wt:<b>` / `commit:<hash>` | `DiffResult` |
 | `GET …/wt/commits/:hash` | | `Commit` (`files` あり) |
 | `GET …/wt/history?path=&max=` | `max` は既定 200、5,000 まで | `FileHistory` (`{ commits: (Commit & { change: Change })[], truncated }`。[git.md](git.md) §8) |
@@ -87,7 +87,7 @@ type DiffResult =
   | { kind: "binary" }
 
 type CompareResult = {
-  branch: string; ref: string
+  branch: string; ref: string // ref はブランチなら完全な ref、コミットなら 40 桁のハッシュ
   mergeBase: string | null // 共通の祖先がなければ null (files / commits は空)
   ahead: number; behind: number
   commits: Commit[] // files なし
@@ -111,7 +111,7 @@ type CompareResult = {
 | HEAD がブランチにない | (エラーにしない) | `(detached) 2ff64ad`。COMPARE・HISTORY は `HEAD` のまま動く |
 | コミットがない | (エラーにしない) | 未コミットの差分は空のツリーと比べる。HISTORY は空 |
 | 比較対象のブランチがない | `NO_COMPARE_BRANCH` | 比較の選択に「未選択」。COMPARE・HISTORY・エクスプローラの記号は空 |
-| 比較対象のブランチが消えた | `BRANCH_NOT_FOUND` | 選択欄を赤くし、COMPARE に「<branch> が見つかりません」 |
+| 比較対象のブランチが消えた・コミットが見つからない | `BRANCH_NOT_FOUND` | 選択欄を赤くし、COMPARE に「<branch> が見つかりません」 |
 | 共通の祖先がない | (`CompareResult.mergeBase = null`。差分は 409 `GIT_FAILED`) | COMPARE に「<branch> と共通の祖先がありません」 |
 | ファイルが消えた・読めない | `NOT_FOUND` / `FORBIDDEN` | タブの中身に文言。自動更新で戻れば表示し直す |
 | パスが不正・外を指す | `INVALID_PATH` / `OUTSIDE` | 400 / 403 |
