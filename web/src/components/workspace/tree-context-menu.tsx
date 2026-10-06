@@ -10,6 +10,7 @@ import { copyText } from "@/lib/clipboard"
 // 右クリックされた位置から一番近い [data-tree-path] の行を対象にする。
 // 行以外の場所を右クリックしたときは、ブラウザ標準のメニューを出す。
 // [data-tree-download] の付いた行 (作業ツリーにあるファイル) には「ダウンロード」も出す。
+// エディタのタブバーでも使う (ファイルと差分のタブ)。
 
 type MenuState = { x: number; y: number; path: string; row: HTMLElement; download: boolean }
 
@@ -17,7 +18,7 @@ const itemClass = "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left 
 
 const MENU_WIDTH = 224
 
-export function TreeContextMenu({ children }: { children: React.ReactNode }) {
+export function TreeContextMenu({ children, className }: { children: React.ReactNode; className?: string }) {
   const wt = useWt()
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
@@ -67,6 +68,7 @@ export function TreeContextMenu({ children }: { children: React.ReactNode }) {
 
   return (
     <div
+      className={className}
       onContextMenu={(e) => {
         const row = (e.target as HTMLElement).closest<HTMLElement>("[data-tree-path]")
         if (!row) return

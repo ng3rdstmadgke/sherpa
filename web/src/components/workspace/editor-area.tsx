@@ -9,6 +9,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { basename, FileIcon, setTabDrag, TAB_MIME, type TabDragPayload } from "./common"
 import { DocumentView, type DocumentActions } from "./document-view"
 import { FindBar } from "./find-bar"
+import { TreeContextMenu } from "./tree-context-menu"
 import {
   activateTab,
   baseLabel,
@@ -122,7 +123,8 @@ function GroupView({ group, ctx }: { group: Group; ctx: Ctx }) {
         }}
         onDrop={(e) => drop(e, "center")}
       >
-        <div className="flex min-w-0 flex-1 overflow-x-auto">
+        {/* 右クリックで、エクスプローラと同じメニュー (相対パスのコピー・ダウンロード) */}
+        <TreeContextMenu className="flex min-w-0 flex-1 overflow-x-auto">
           {group.tabs.map((t) => (
             <TabHeader
               key={tabKey(t)}
@@ -134,7 +136,7 @@ function GroupView({ group, ctx }: { group: Group; ctx: Ctx }) {
               onDragStart={(e) => setTabDrag(e, { tab: t, fromGroupId: group.id })}
             />
           ))}
-        </div>
+        </TreeContextMenu>
         <div className="flex shrink-0 items-center gap-0.5 px-1">
           {active && (
             <>
@@ -217,6 +219,10 @@ function TabHeader(props: {
   return (
     <div
       draggable
+      // コミットのタブにはパスがないので、メニューを出さない (ブラウザ標準のメニュー)。
+      // 差分のタブは、削除したファイルのこともあるので「ダウンロード」を出さない
+      data-tree-path={tab.kind === "commit" ? undefined : tab.path}
+      data-tree-download={tab.kind === "file" ? "" : undefined}
       onDragStart={props.onDragStart}
       onClick={props.onSelect}
       onAuxClick={(e) => e.button === 1 && props.onClose()}
