@@ -84,6 +84,34 @@ function CopyPathButton({ path }: { path: string }) {
   )
 }
 
+// 作業ツリーの今のファイルの内容をコピーするボタン (パスのバー)。テキストのファイルだけ押せる。
+// 本文と同じクエリを使うので、表示中のファイルなら読み直さない
+function CopyContentButton({ path }: { path: string }) {
+  const { data } = useFile(path)
+  const [copied, setCopied] = useState(false)
+  const text = data?.kind === "text" ? data.content : undefined
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={text === undefined}
+      onClick={() =>
+        text !== undefined &&
+        void copyText(text).then((ok) => {
+          if (!ok) return
+          setCopied(true)
+          setTimeout(() => setCopied(false), 1500)
+        })
+      }
+      title={text === undefined ? "テキストのファイルだけコピーできます" : copied ? "コピーしました" : "ファイルの内容 (作業ツリーの今の内容) をコピー"}
+      className="h-6 min-w-0 px-2 text-xs text-muted-foreground"
+    >
+      {copied ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}
+      Copy
+    </Button>
+  )
+}
+
 function Breadcrumb({ path }: { path: string }) {
   const parts = path.split("/")
   const file = parts.pop()
@@ -314,7 +342,7 @@ function LoadedDiff(props: {
 type FileTab = Extract<DocTab, { kind: "file" }>
 type DiffTab = Extract<DocTab, { kind: "diff" }>
 
-// ファイルタブと差分タブの本文。パスのバーの右に [プレビュー|ソース] [Unified|Split] [差分|全体] [Blame] [History] を並べる。
+// ファイルタブと差分タブの本文。パスのバーの右に [プレビュー|ソース] [Unified|Split] [差分|全体] [Copy] [Blame] [History] を並べる。
 // プレビュー / ソースは Markdown (と、全体のときの HTML) だけ、Unified / Split は差分のときだけ、差分 / 全体は差分があるときか履歴で選んでいるときだけ出す。
 // Blame と History はどちらか一方だけ。Blame の間は本文を blame にし、ほかの切り替えは出さない
 // diff: 差分の取り方 (ファイルタブは比較対象との差分をファイル全体に重ねる。差分がなければ undefined)
@@ -389,6 +417,7 @@ function DocumentPane(props: { tab: FileTab | DiffTab; view: GroupView; actions:
               ]}
             />
           )}
+          <CopyContentButton path={path} />
           <Toggle
             variant="outline"
             size="sm"

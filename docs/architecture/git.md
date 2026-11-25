@@ -160,7 +160,7 @@ path/to/file.md     [プレビュー|ソース] [Unified|Split] [差分|全体] 
 ファイルのタブと差分のタブで、本文を作業ツリーの今の内容の blame にする。画面は [files.md](files.md) §5 の「パスのバーの切り替え」。
 
 ```
-path/to/file.ts                                             [Blame] [🕘 History]
+path/to/file.ts                                      [Copy] [Blame] [🕘 History]
 ┃1ef0902 sherpa を公開する          ktamido 1週間前 │  1 "use client"
 ┃                                                  │  2
 ┃cd6f34a ファイルの履歴を見られる…  ktamido 6日前   │  3 import …
